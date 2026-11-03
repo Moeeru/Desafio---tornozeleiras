@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+
+# Datasets volumosos que excedem o limite de arquivos do GitHub (100MB+)
+Inputs/dataset6.txt
+Inputs/dataset7.txt

@@ -1,0 +1,27 @@
+{
+  "name": "desafio-deteccao-encontros",
+  "version": "1.0.0",
+  "description": "Algoritmo de alta performance para detecção de encontros físicos de monitorados e vítimas",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:dev": "node --no-warnings src/index.js",
+    "test": "node dist/tests/detector.test.js",
+    "test:dev": "node src/tests/detector.test.js",
+    "process:all": "node dist/index.js --all"
+  },
+  "keywords": [
+    "haversine",
+    "geolocalizacao",
+    "deteccao-encontros",
+    "nodejs",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.3",
+    "typescript": "^5.8.3"
+  }
+}
