@@ -22,6 +22,8 @@ npm run tudo
 
 O `npm run tudo` compila, processa os 7 datasets, roda os testes e abre o BI em **http://localhost:4173**. Para só gerar as respostas do desafio: `npm run build && npm start`. O passo a passo completo está na [seção 4](#4-como-executar).
 
+**Documentação técnica:** as técnicas usadas, as tecnologias de cada parte, a demonstração de que o pré-filtro não perde encontros, como a correção é verificada, a complexidade e as limitações estão em [docs/TECNICO.md](docs/TECNICO.md).
+
 ---
 
 ## 1. Resultados
