@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Radar de Encontros</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="./estilos.css" data-inline>
+</head>
+<body>
+<div class="wrap">
+  <header class="cabeca">
+    <div class="marca">
+      <h1>Radar de Encontros</h1>
+      <p class="sub">Monitorados por tornozeleira e vítimas com medida protetiva: encontros a menos de 20 m no mesmo instante.</p>
+    </div>
+    <div class="fresh">
+      <span id="fresh" class="fresh-txt"></span>
+      <button type="button" class="btn" id="btn-refresh" hidden>Atualizar dados</button>
+    </div>
+  </header>
+
+  <div class="topo">
+    <nav class="tabs" id="abas" role="tablist" aria-label="Seções do BI"></nav>
+    <div id="filtros"></div>
+  </div>
+
+  <div class="card msg" id="app-msg" role="status" hidden></div>
+
+  <main id="conteudo" role="tabpanel" aria-live="polite"></main>
+
+  <footer id="foot"></footer>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script type="module" src="./app/main.js" data-inline></script>
+</body>
+</html>

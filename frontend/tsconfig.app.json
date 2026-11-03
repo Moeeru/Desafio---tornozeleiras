@@ -1,0 +1,22 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [],
+    "rootDir": "./src/app",
+    "outDir": "./dist/app",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "sourceMap": false
+  },
+  "include": [
+    "src/app/**/*.ts",
+    "../shared/**/*.d.ts"
+  ]
+}

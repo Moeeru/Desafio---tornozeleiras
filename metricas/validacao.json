@@ -1,0 +1,62 @@
+{
+  "executadoEm": "2026-11-03T21:05:27.190Z",
+  "passaram": 48,
+  "falharam": 0,
+  "datasets": [
+    {
+      "dataset": 1,
+      "fonte": "gabarito",
+      "esperados": 4,
+      "gerados": 4,
+      "corretos": 4,
+      "faltando": 0,
+      "extras": 0,
+      "tipoErrado": 0,
+      "distanciaDiferente": 0
+    },
+    {
+      "dataset": 2,
+      "fonte": "gabarito",
+      "esperados": 6,
+      "gerados": 6,
+      "corretos": 6,
+      "faltando": 0,
+      "extras": 0,
+      "tipoErrado": 0,
+      "distanciaDiferente": 0
+    },
+    {
+      "dataset": 3,
+      "fonte": "referencia",
+      "esperados": 10,
+      "gerados": 10,
+      "corretos": 10,
+      "faltando": 0,
+      "extras": 0,
+      "tipoErrado": 0,
+      "distanciaDiferente": 0
+    },
+    {
+      "dataset": 4,
+      "fonte": "referencia",
+      "esperados": 15,
+      "gerados": 15,
+      "corretos": 15,
+      "faltando": 0,
+      "extras": 0,
+      "tipoErrado": 0,
+      "distanciaDiferente": 0
+    },
+    {
+      "dataset": 5,
+      "fonte": "referencia",
+      "esperados": 21,
+      "gerados": 21,
+      "corretos": 21,
+      "faltando": 0,
+      "extras": 0,
+      "tipoErrado": 0,
+      "distanciaDiferente": 0
+    }
+  ]
+}

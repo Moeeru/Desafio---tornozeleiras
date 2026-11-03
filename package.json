@@ -1,15 +1,29 @@
 {
   "name": "desafio-deteccao-encontros",
   "version": "1.0.0",
+  "private": true,
   "description": "Algoritmo de alta performance para detecção de encontros físicos de monitorados e vítimas",
-  "main": "dist/index.js",
+  "main": "backend/dist/cli/processar.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "start:dev": "node --no-warnings src/index.js",
-    "test": "node dist/tests/detector.test.js",
-    "test:dev": "node src/tests/detector.test.js",
-    "process:all": "node dist/index.js --all"
+    "tudo": "npm run build && npm start && npm test && npm run bi:serve",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "tsc -p backend",
+    "build:frontend": "tsc -p frontend/tsconfig.app.json && tsc -p frontend/tsconfig.servidor.json",
+    "typecheck": "tsc -p backend --noEmit && tsc -p frontend/tsconfig.app.json --noEmit && tsc -p frontend/tsconfig.servidor.json --noEmit",
+    "clean": "node -e \"for (const d of ['backend/dist', 'frontend/dist']) require('fs').rmSync(d, { recursive: true, force: true })\"",
+    "start": "node backend/dist/cli/processar.js",
+    "dev": "npm run build:backend && node backend/dist/cli/processar.js",
+    "test": "node backend/dist/tests/detector.test.js",
+    "test:dev": "npm run build:backend && node backend/dist/tests/detector.test.js",
+    "incluir": "node backend/dist/cli/incluir.js",
+    "remover": "node backend/dist/cli/remover.js",
+    "brutos": "node backend/dist/cli/brutos.js",
+    "explicar": "node backend/dist/cli/explicar.js",
+    "bi": "npm run build:frontend && node frontend/dist/servidor/gerarPainel.js",
+    "bi:serve": "npm run build:frontend && node frontend/dist/servidor/servidor.js"
   },
   "keywords": [
     "haversine",

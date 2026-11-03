@@ -58,8 +58,8 @@ export function haversineDistance(
  * a distância real NUNCA poderá ser inferior a 20 metros, permitindo
  * descartar pares sem realizar cálculos trigonométricos custosos.
  */
-const MAX_DELTA_LAT = 0.00025;
-const MAX_DELTA_LON = 0.00035;
+export const MAX_DELTA_LAT = 0.00025;
+export const MAX_DELTA_LON = 0.00035;
 
 export function isWithinBoundingBox(
   lat1: number,

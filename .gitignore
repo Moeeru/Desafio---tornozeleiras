@@ -3,7 +3,15 @@ dist/
 *.log
 .DS_Store
 
+# Só os datasets 1 a 5 vão para o repositório: o 6 e o 7 passam do limite de 100 MB do GitHub,
+# e os incluídos depois (dataset8.txt em diante) são locais
+Inputs/dataset*.txt
+!Inputs/dataset[1-5].txt
+outputs/respostas*.json
+!outputs/respostas[1-7].json
 
-# Datasets volumosos que excedem o limite de arquivos do GitHub (100MB+)
-Inputs/dataset6.txt
-Inputs/dataset7.txt
+# Índices de leitura gerados sob demanda pela aba Dados brutos
+metricas/indices/
+
+# Instruções locais do Claude Code (não versionar)
+CLAUDE.md
