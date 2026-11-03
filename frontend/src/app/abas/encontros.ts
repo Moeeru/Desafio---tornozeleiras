@@ -4,24 +4,28 @@ import { desenharBarras, desenharFaixas, legendaHtml } from '../componentes/graf
 import { TIPO, TIPOS, sw } from '../nucleo/constantes.js';
 import { $ } from '../nucleo/dom.js';
 import { compact, fmtDur, nf, nf1, pct, plural } from '../nucleo/formato.js';
-import { M } from '../nucleo/modelo.js';
+import { intervaloTxt, limiteTxt, M, P } from '../nucleo/modelo.js';
 import { acoes, filtros, gravarHash, ui } from '../nucleo/estado.js';
 import { recorte } from '../nucleo/filtros.js';
 import { contagemTipos, estatEncontros } from '../nucleo/indicadores.js';
 import type { DefAba } from './aba.js';
 
+/** O "muito próximo" vai de 1 m até 1 m abaixo da distância limite da configuração. */
+const tetoLim = (): number => Math.max(1, Math.ceil(P().distanciaLimiteMetros) - 1);
+
 function cartoesEncontros(): Cartao[] {
+  if (ui.lim > tetoLim()) ui.lim = tetoLim();
   const r = recorte('todos');
   const s = estatEncontros(r, ui.lim);
   return [
     { id: 'e-total', titulo: 'Encontros', valor: nf.format(s.total), texto: `${plural(s.pares, 'par diferente', 'pares diferentes')} de pessoas.`,
-      como: 'Um registro por par de pessoas a menos de 20 m em cada instante (regra de pontuação do desafio).' },
+      como: `Um registro por par de pessoas a menos de ${limiteTxt()} em cada instante (regra de pontuação do desafio).` },
     { id: 'e-eps', titulo: 'Episódios', valor: nf.format(s.episodios),
       texto: s.total > s.episodios ? `${plural(s.total - s.episodios, 'leitura seguida agrupada', 'leituras seguidas agrupadas')} ao mesmo episódio.` : 'Nenhum par ficou próximo em leituras seguidas.',
-      como: 'Leituras seguidas (a cada 5 s) do mesmo par contam como um único episódio de aproximação.' },
+      como: `Leituras seguidas (a cada ${intervaloTxt()}) do mesmo par contam como um único episódio de aproximação.` },
     { id: 'e-dur', titulo: 'Duração média do episódio', valor: s.duracaoMedia == null ? '–' : `${nf1.format(s.duracaoMedia)}<small>s</small>`,
       texto: s.duracaoMax == null ? 'Sem encontros.' : `O mais longo durou ${fmtDur(s.duracaoMax)}.`,
-      como: 'Último instante − primeiro instante do episódio + 5 s (cada leitura vale 5 s).' },
+      como: `Último instante − primeiro instante do episódio + ${intervaloTxt()} (cada leitura vale ${intervaloTxt()}).` },
     { id: 'e-prox', titulo: `Muito próximos (menos de ${ui.lim} m)`, valor: s.total ? `${pct(s.proximos, s.total)}<small>%</small>` : '–',
       texto: `${plural(s.proximos, 'encontro', 'encontros')} de ${nf.format(s.total)}. Ajuste o limite no controle abaixo.`,
       como: 'Encontros com distância abaixo do limite escolhido ÷ total de encontros.' },
@@ -47,15 +51,16 @@ function desenharGraficosEncontros(): void {
     acoes.renderizar();
   });
   const dist = document.getElementById('e-dist');
-  if (dist) desenharFaixas(dist, r.enc);
+  if (dist) desenharFaixas(dist, r.enc, P().distanciaLimiteMetros);
 }
 
 function renderEncontros(el: HTMLElement): void {
+  if (ui.lim > tetoLim()) ui.lim = tetoLim();
   const r = recorte('todos');
   const s = estatEncontros(r, ui.lim);
   const rep = s.reincidentes.slice(0, 8).map(v => {
     const e = v[0];
-    const span = (v[v.length - 1].t - v[0].t) / 1000, seguidas = span === (v.length - 1) * 5;
+    const span = (v[v.length - 1].t - v[0].t) / 1000, seguidas = span === (v.length - 1) * P().intervaloLeituraSegundos;
     return `<li class="item">
       <span class="badge" style="background:${sw(e.tipo)}">${v.length}×</span>
       <span class="item-t"><b>#${e.a} e #${e.b}</b> <span class="role">D${e.ds} · ${TIPO[e.tipo].nome}</span></span>
@@ -67,7 +72,7 @@ function renderEncontros(el: HTMLElement): void {
     ${gradeCartoes(cartoesEncontros())}
     <div class="ferramenta">
       <label for="e-lim">Considerar "muito próximo" abaixo de <b id="e-lim-v">${ui.lim} m</b></label>
-      <input type="range" id="e-lim" min="5" max="19" step="1" value="${ui.lim}">
+      <input type="range" id="e-lim" min="1" max="${tetoLim()}" step="1" value="${ui.lim}">
     </div>
     <div class="duas">
       ${secao('Encontros por dataset', 'Clique numa coluna para filtrar o painel por aquele dataset.', '<div class="chart" id="e-bars"></div>', legendaHtml(TIPOS.map(t => t.k)))}

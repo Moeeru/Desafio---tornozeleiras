@@ -2,7 +2,7 @@ import fs from 'fs';
 import type { Funil } from '../../../shared/contrato';
 import { Auditoria, detach } from './auditoria';
 import { classifyEncounter } from './classifier';
-import { DEFAULT_EARTH_RADIUS_METERS, MAX_DELTA_LAT, MAX_DELTA_LON, haversineDistance } from './haversine';
+import { DEFAULT_DISTANCE_THRESHOLD_METERS, DEFAULT_EARTH_RADIUS_METERS, haversineDistance, margensPreFiltro } from './haversine';
 import { COMPLEXA, INVALIDA, bytesIguais, lerLinhaBytes, posTs } from './leituraBytes';
 import { createDatasetStream, parseLine } from './streamParser';
 import type { Coordinate, DataQuality, DetectorOptions, Encounter, MonitoredEntity } from './types';
@@ -38,6 +38,9 @@ function qualidadeVazia(): DataQuality {
 export class EncounterDetector {
   private readonly distanceThreshold: number;
   private readonly earthRadius: number;
+  /** Margens do pré-filtro para a distância limite (ver margensPreFiltro). */
+  private readonly maxDeltaLat: number;
+  private readonly maxDeltaLon: number;
   /** Marcas por registro do lote atual (reaproveitadas entre lotes para não alocar). */
   private marcaCandidato = new Uint8Array(256);
   private marcaEncontro = new Uint8Array(256);
@@ -49,8 +52,11 @@ export class EncounterDetector {
   public lastRun: DataQuality = qualidadeVazia();
 
   constructor(options?: DetectorOptions) {
-    this.distanceThreshold = options?.distanceThresholdMeters ?? 20;
+    this.distanceThreshold = options?.distanceThresholdMeters ?? DEFAULT_DISTANCE_THRESHOLD_METERS;
     this.earthRadius = options?.earthRadiusMeters ?? DEFAULT_EARTH_RADIUS_METERS;
+    const margens = margensPreFiltro(this.distanceThreshold);
+    this.maxDeltaLat = margens.lat;
+    this.maxDeltaLon = margens.lon;
   }
 
   /**
@@ -70,6 +76,7 @@ export class EncounterDetector {
     }
     const cand = this.marcaCandidato, enc = this.marcaEncontro;
     const lats = this.latLote, lons = this.lonLote;
+    const maxDLat = this.maxDeltaLat, maxDLon = this.maxDeltaLon, limite = this.distanceThreshold;
     cand.fill(0, 0, len);
     enc.fill(0, 0, len);
     for (let k = 0; k < len; k++) { lats[k] = entities[k].latitude; lons[k] = entities[k].longitude; }
@@ -79,10 +86,10 @@ export class EncounterDetector {
     for (let i = 0; i < len; i++) {
       const lat1 = lats[i], lon1 = lons[i];
       for (let j = i + 1; j < len; j++) {
-        // 1. Pré-filtro espacial barato: descarta pares comprovadamente a mais de 20 m.
+        // 1. Pré-filtro espacial barato: descarta pares comprovadamente acima da distância limite.
         //    É a mesma conta de isWithinBoundingBox, escrita direto no laço (714 milhões de pares no dataset 7).
-        if (Math.abs(lat1 - lats[j]) > MAX_DELTA_LAT) continue;
-        if (Math.abs(lon1 - lons[j]) > MAX_DELTA_LON) continue;
+        if (Math.abs(lat1 - lats[j]) > maxDLat) continue;
+        if (Math.abs(lon1 - lons[j]) > maxDLon) continue;
         const p1 = entities[i], p2 = entities[j];
         funil.paresPreFiltro++;
         cand[i] = 1;
@@ -92,8 +99,8 @@ export class EncounterDetector {
         // 2. Distância geodésica pela fórmula de Haversine
         const distance = haversineDistance(p1.latitude, p1.longitude, p2.latitude, p2.longitude, this.earthRadius);
 
-        // 3. Critério estrito: menos de 20 metros
-        if (!(distance < this.distanceThreshold)) continue;
+        // 3. Critério estrito: menos que a distância limite (20 m no desafio)
+        if (!(distance < limite)) continue;
         funil.paresProximos++;
 
         // 4. Regras de negócio

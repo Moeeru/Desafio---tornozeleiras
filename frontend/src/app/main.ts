@@ -17,7 +17,7 @@ import type { DefAba } from './abas/aba.js';
 import { carregarDadosPainel } from './nucleo/api.js';
 import { $, hideTip } from './nucleo/dom.js';
 import { esc, fmtDataHora } from './nucleo/formato.js';
-import { M, montarModelo } from './nucleo/modelo.js';
+import { limiteTxt, M, montarModelo } from './nucleo/modelo.js';
 import { acoes, aplicarHash, gravarHash, ui, type IdAba } from './nucleo/estado.js';
 import { renderBarraFiltros } from './nucleo/filtros.js';
 
@@ -39,6 +39,7 @@ function renderCabecalho(): void {
   const partes = [`Dados de ${fmtDataHora(exec ?? D.geradoEm)}`];
   if (D.validacao) partes.push(`validação de ${fmtDataHora(D.validacao.executadoEm)}`);
   $('fresh').textContent = partes.join(' · ');
+  $('sub').textContent = `Monitorados por tornozeleira e vítimas com medida protetiva: encontros a menos de ${limiteTxt()} no mesmo instante.`;
   $('btn-refresh').hidden = D.origem !== 'servidor';
   $('foot').innerHTML = `Radar de Encontros · ${M.DS.length} datasets · gerado a partir de <code>outputs/</code> e <code>metricas/</code>. ` +
     (D.origem === 'servidor' ? 'Use <b>Atualizar dados</b> depois de rodar <code>npm start</code> ou <code>npm test</code>.' : 'Gere de novo com <code>npm run bi</code>.');

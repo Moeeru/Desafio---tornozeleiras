@@ -84,7 +84,7 @@ export function renderBarraFiltros(escopo: EscopoFiltros, aberta: boolean): void
 
   const grupoDs = `<div class="fgrp"><span class="flab">Dataset</span><div class="chips">
       ${chip('f-ds-todos', !filtros.ds.size, 'Todos')}
-      ${M.DS.map(d => chip(`f-ds-${d.n}`, filtros.ds.has(d.n), `D${d.n}`, undefined, d.oficial ? 'dataset oficial' : 'dataset incluído')).join('')}
+      ${M.DS.map(d => chip(`f-ds-${d.n}`, filtros.ds.has(d.n), `D${d.n}`, undefined, `${d.arquivo ? `${d.arquivo} · ` : ''}${d.oficial ? 'dataset oficial' : 'dataset incluído'}`)).join('')}
     </div></div>`;
 
   const completos = escopo === 'todos' ? `

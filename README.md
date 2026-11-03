@@ -71,7 +71,8 @@ backend/                     A solução do desafio
 │   │   ├── leituraBytes.ts      Leitura de cada linha direto dos bytes (caminho rápido)
 │   │   ├── streamParser.ts      parseLine e leitura com readline (referência e formatos incomuns)
 │   │   └── types.ts
-│   ├── arquivos/            Pastas, datasets existentes, métricas e índice de instantes
+│   ├── arquivos/            Pastas, catálogo de datasets, inclusão, métricas e índice de instantes
+│   ├── config.ts            Lê radar.config.json
 │   ├── processamento.ts     Um dataset de ponta a ponta: detecção, resposta e métricas
 │   └── tests/
 └── tsconfig.json
@@ -89,9 +90,10 @@ frontend/                    O BI
 ├── tsconfig.app.json
 └── tsconfig.servidor.json
 
+radar.config.json            Configuração única: pastas, datasets oficiais, formato, distância limite, porta
 shared/contrato.d.ts         Só tipos: o formato de tudo que passa entre backend e BI
 exemplos/                    dataset-com-falhas.txt, com um caso de cada falha de coleta
-metricas/                    Tempos, funil, falhas e validação, gravados pelo backend
+metricas/                    Catálogo de datasets, tempos, funil, falhas e validação, gravados pelo backend
 ```
 
 **Como as partes conversam.** O backend e o BI não importam código um do outro:
@@ -196,7 +198,7 @@ Compila o backend para `backend/dist/` e o frontend para `frontend/dist/`. Rode 
 npm start
 ```
 
-Processa todos os `Inputs/datasetN.txt` em sequência, em cerca de 15 s no total. Para cada um aparece uma linha como esta:
+Processa todos os arquivos de `Inputs/` em sequência, em cerca de 15 s no total. Para cada um aparece uma linha como esta:
 
 ```
 Processando dataset1.txt (0.2 MB)... Concluído em 0.03s (com gravação: 0.03s)! Encontros: 4 (Genéricos: 2, Facções: 1, Protetivas: 1)
@@ -258,15 +260,38 @@ Gera `frontend/dist/painel.html`, com estilos, código e dados embutidos. Basta 
 
 ### Incluir novos dados
 
-Um novo arquivo vira o próximo dataset (o 8, depois o 9…), passa pela detecção e pela auditoria, e aparece em todas as abas do BI. Há três formas:
+Um novo arquivo é gravado em `Inputs/` **com o nome que ele tem** (por exemplo, `coleta março.csv`). Ele recebe o próximo número de dataset (8, depois 9…), passa pela detecção e pela auditoria e aparece em todas as abas do BI. O número liga o arquivo a `outputs/respostasN.json` e aos filtros. A correspondência número → arquivo fica em `metricas/datasets.json`. Números de datasets removidos não são reaproveitados. Há três formas:
 
-- **Pelo BI:** na aba **Incluir dados**, escolha o arquivo e clique em **Enviar e processar** (precisa do `npm run bi:serve`).
-- **Pelo terminal:** `npm run incluir -- caminho/do/arquivo.txt`. O comando confere o cabeçalho, copia o arquivo para `Inputs/datasetN.txt` e já processa.
-- **À mão:** copie o arquivo para `Inputs/` com o nome `datasetN.txt` (N maior que 7) e rode `npm start -- -d N`.
+- **Pelo BI:** na aba **Incluir dados**, escolha o arquivo (precisa do `npm run bi:serve`).
+  - Antes de enviar, o BI pergunta ao backend se já existe um arquivo com esse nome, sem diferenciar maiúsculas.
+  - Se existir, aparece um aviso, o botão fica bloqueado e nada é enviado.
+  - Se não existir, clique em **Enviar e processar**.
+- **Pelo terminal:** `npm run incluir -- caminho/do/arquivo.txt`. O comando confere o nome, o cabeçalho e se o conteúdo repete um dataset existente, copia o arquivo com o mesmo nome e já processa. Para só conferir um nome: `npm run incluir -- --verificar "nome.txt"`.
+- **À mão:** copie o arquivo para `Inputs/` e rode `npm start`. Arquivos novos com extensão aceita entram no catálogo sozinhos; arquivos sem o cabeçalho certo são ignorados, com aviso.
+
+Nada é sobrescrito. A inclusão é recusada, com aviso, quando já existe um arquivo com o mesmo nome ou com exatamente o mesmo conteúdo.
 
 O arquivo precisa ter, na primeira linha, o mesmo cabeçalho dos datasets oficiais. Linhas com problema não impedem o processamento: elas são descartadas e aparecem na aba **Qualidade da coleta**. Para ver essa aba com falhas, inclua `exemplos/dataset-com-falhas.txt`.
 
-Para remover um dataset incluído: botão **Remover** na aba Incluir dados, ou `npm run remover -- 8`. Os 7 oficiais não podem ser removidos. Os datasets incluídos e as respostas deles ficam fora do git.
+Para remover um dataset incluído: botão **Remover** na aba Incluir dados, ou `npm run remover -- 8`. Os oficiais (os listados em `radar.config.json`) não podem ser removidos. Os datasets incluídos e as respostas deles ficam fora do git.
+
+### Configuração (`radar.config.json`)
+
+Os valores que antes estavam fixos no código ficam num arquivo só, na raiz. O backend e o BI leem esse arquivo:
+
+| Campo | Padrão | Para que serve |
+| :--- | :--- | :--- |
+| `pastas.entradas` / `saidas` / `metricas` / `gabaritos` | `Inputs`, `outputs`, `metricas`, `Respostas esperadas` | Onde ficam os arquivos (relativo à raiz) |
+| `datasetsOficiais` | `dataset1.txt` … `dataset7.txt` | Datasets do desafio, na ordem (o primeiro é o dataset 1). Não podem ser removidos. |
+| `formato.cabecalho` | `idMonitorado;…;idsRestricaoMedida` | Primeira linha exigida. A ordem das colunas é fixa, porque o leitor é posicional. |
+| `formato.extensoes` | `.txt`, `.csv` | Extensões aceitas na pasta de entradas e na inclusão |
+| `formato.intervaloLeituraSegundos` | `5` | Intervalo entre leituras, usado para agrupar episódios no BI |
+| `deteccao.distanciaLimiteMetros` | `20` | Distância de um encontro. As margens do pré-filtro acompanham o valor. |
+| `deteccao.raioTerraMetros` | `6371000` | Raio usado pela fórmula de Haversine |
+| `bi.porta` | `4173` | Porta do `npm run bi:serve` (`--porta N` tem prioridade) |
+| `bi.limiteUploadMB` | `2048` | Maior arquivo aceito pelo envio no BI |
+
+O desafio define 20 m e 6.371.000 m. Com outros valores, o programa funciona, mas os gabaritos dos testes deixam de valer. Depois de mudar a configuração, rode `npm start` e `npm test` de novo.
 
 ### Referência rápida dos comandos
 
@@ -279,7 +304,8 @@ Para remover um dataset incluído: botão **Remover** na aba Incluir dados, ou `
 | `npm start` | Processa todos os datasets de `Inputs/` |
 | `npm start -- -d N` | Processa só o dataset N |
 | `npm test` | Roda os testes (exige o backend compilado; `npm run test:dev` compila antes) |
-| `npm run incluir -- arquivo.txt` | Inclui e processa um novo arquivo de dados |
+| `npm run incluir -- arquivo.txt` | Inclui e processa um novo arquivo de dados, com o nome original |
+| `npm run incluir -- --verificar nome.txt` | Só confere se o nome pode ser usado e se já existe |
 | `npm run remover -- N` | Remove um dataset incluído |
 | `npm run brutos -- --dataset N --pagina P` | Uma página da tabela de dados brutos, em JSON (sem `--dataset`: todos) |
 | `npm run explicar -- --dataset N --instante K` | Mostra, em JSON, o tratamento de cada registro e cada par de um instante |
@@ -292,7 +318,9 @@ Para remover um dataset incluído: botão **Remover** na aba Incluir dados, ou `
 | :--- | :--- |
 | `Cannot find module '...backend/dist/cli/processar.js'` | O projeto não foi compilado. Rode `npm run build`. |
 | `'tsc' não é reconhecido` ou `tsc: not found` | As dependências não foram instaladas. Rode `npm install`. |
-| `[ERRO] Dataset inválido: 9. Disponíveis em Inputs/: ...` | Não existe `Inputs/dataset9.txt`. A mensagem lista os que existem. |
+| `[ERRO] Dataset inválido: 9. Disponíveis em Inputs/: ...` | Não há dataset 9 no catálogo. A mensagem lista os números e os arquivos que existem. |
+| "Este arquivo já existe no backend" ao incluir | Já há um arquivo com esse nome em `Inputs/`, ou com o mesmo conteúdo. Renomeie o arquivo ou remova o dataset existente. |
+| `[AVISO] arquivo.txt ignorado: A primeira linha precisa ser o cabeçalho` | Um arquivo da pasta de entradas não é um arquivo de dados. Tire o arquivo da pasta ou corrija o cabeçalho. |
 | `[AVISO] Falhas na coleta: ...` | O arquivo de entrada tem linhas com problema. Os detalhes, linha a linha, estão na aba Qualidade da coleta. |
 | `TOTAL DE TESTES` com falhas | Leia as linhas `[FAIL]` acima do total. Um arquivo de entrada ou gabarito ausente também conta como falha. |
 | `A porta 4173 já está em uso` | Outro programa usa a porta. Rode `npm run bi:serve -- --porta 8080`. |

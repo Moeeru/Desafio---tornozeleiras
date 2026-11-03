@@ -10,7 +10,7 @@ import { TIPO, sw } from '../nucleo/constantes.js';
 import { buscarPaginaBrutos } from '../nucleo/api.js';
 import { $ } from '../nucleo/dom.js';
 import { esc, nf, nf1, nf5 } from '../nucleo/formato.js';
-import { M } from '../nucleo/modelo.js';
+import { limiteTxt, M, nomeDs, P } from '../nucleo/modelo.js';
 import { acoes, gravarHash, ui } from '../nucleo/estado.js';
 import type { DefAba } from './aba.js';
 
@@ -54,7 +54,7 @@ function paresHtml(r: RegistroBruto): string {
   return r.paresCom.map(p => {
     const resultado = p.etapa === 'encontro' && p.tipo
       ? `<span class="tag"><i style="background:${sw(p.tipo)}"></i>encontro ${TIPO[p.tipo].nome.toLowerCase()}</span>`
-      : p.etapa === 'ignorado_vitima' ? '<span class="role">descartado: vítima sem relação</span>' : '<span class="role">20 m ou mais</span>';
+      : p.etapa === 'ignorado_vitima' ? '<span class="role">descartado: vítima sem relação</span>' : `<span class="role">${limiteTxt()} ou mais</span>`;
     return `<span class="par-bruto"><span class="mono">#${p.id} · ${metros(p.distancia)}</span> ${resultado}</span>`;
   }).join('');
 }
@@ -93,7 +93,7 @@ function renderBrutos(el: HTMLElement): void {
   if (!M.dados.capacidades?.brutos) {
     el.innerHTML = secao('Dados brutos', '', `<div class="aviso-box">
       <p><b>Esta aba precisa do servidor do BI.</b> Os arquivos têm 21,5 milhões de linhas e não cabem numa página: o backend entrega uma página da tabela por vez.</p>
-      <p>Rode <code>npm run build</code> e depois <code>npm run bi:serve</code>, e abra <b>http://localhost:4173</b>.</p></div>`);
+      <p>Rode <code>npm run build</code> e depois <code>npm run bi:serve</code>, e abra <b>http://localhost:${P().portaBi}</b>.</p></div>`);
     return;
   }
   const b = ui.brutos;
@@ -109,7 +109,7 @@ function renderBrutos(el: HTMLElement): void {
       <span class="ctl"><label for="b-ds">Fonte</label>
         <select class="field" id="b-ds">
           <option value="0"${b.ds === 0 ? ' selected' : ''}>Todos os datasets</option>
-          ${M.DS.map(d => `<option value="${d.n}"${d.n === b.ds ? ' selected' : ''}>Só o dataset ${d.n}</option>`).join('')}
+          ${M.DS.map(d => `<option value="${d.n}"${d.n === b.ds ? ' selected' : ''}>Só ${esc(nomeDs(d.n))}</option>`).join('')}
         </select></span>
       <span class="ctl">
         <button type="button" class="btn" id="b-ini"${b.pagina <= 1 ? ' disabled' : ''} aria-label="Primeira página">«</button>

@@ -110,7 +110,7 @@ export function aplicarHash(hash: string): void {
   const fac = p.get('fac') || '';
   filtros.fac = M.FACS.includes(fac) ? fac : '';
   const lim = Number(p.get('lim'));
-  ui.lim = lim >= 5 && lim <= 19 ? Math.round(lim) : 10;
+  ui.lim = lim >= 1 && lim <= 9999 ? Math.round(lim) : 10; // teto (distância limite − 1) aplicado na aba Encontros
 
   const r = ui.registros;
   const v = p.get('view');

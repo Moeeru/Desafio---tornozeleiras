@@ -19,6 +19,3 @@ export const STACK: TipoEncontro[] = ['generico', 'faccao', 'protetiva'];
 
 /** Cor da série (token CSS). */
 export const sw = (k: TipoEncontro): string => `var(--s-${k})`;
-
-/** Um registro a cada 5 segundos, por especificação do desafio. */
-export const INTERVALO_LEITURA_MS = 5000;

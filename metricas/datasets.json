@@ -1,0 +1,47 @@
+{
+  "ultimoNumero": 7,
+  "datasets": [
+    {
+      "n": 1,
+      "arquivo": "dataset1.txt",
+      "oficial": true,
+      "existe": true
+    },
+    {
+      "n": 2,
+      "arquivo": "dataset2.txt",
+      "oficial": true,
+      "existe": true
+    },
+    {
+      "n": 3,
+      "arquivo": "dataset3.txt",
+      "oficial": true,
+      "existe": true
+    },
+    {
+      "n": 4,
+      "arquivo": "dataset4.txt",
+      "oficial": true,
+      "existe": true
+    },
+    {
+      "n": 5,
+      "arquivo": "dataset5.txt",
+      "oficial": true,
+      "existe": true
+    },
+    {
+      "n": 6,
+      "arquivo": "dataset6.txt",
+      "oficial": true,
+      "existe": true
+    },
+    {
+      "n": 7,
+      "arquivo": "dataset7.txt",
+      "oficial": true,
+      "existe": true
+    }
+  ]
+}

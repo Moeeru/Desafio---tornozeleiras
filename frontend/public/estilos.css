@@ -166,7 +166,7 @@ button { font-family: inherit; }
 @media (max-width: 900px) { .duas { grid-template-columns: 1fr; } }
 
 /* Cartões de indicador */
-.kgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.kgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; }
 .kcard {
   background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r-lg); box-shadow: var(--shadow);
   padding: 18px 20px; display: grid; gap: 6px; align-content: start;
@@ -175,7 +175,7 @@ button { font-family: inherit; }
 @media (max-width: 640px) { .kcard.largo { grid-column: auto; } }
 .kcard header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .kcard h3 { margin: 0; font: 600 var(--t-sm)/1.35 var(--f-body); color: var(--ink-2); text-wrap: balance; }
-.kval { margin: 4px 0 0; font: 720 var(--t-num)/1.05 var(--f-display); font-stretch: 80%; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.kval { margin: 4px 0 0; font: 720 clamp(24px, 16cqi, var(--t-num))/1.05 var(--f-display); font-stretch: 80%; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .kval small { font-size: var(--t-lg); font-weight: 600; color: var(--muted); margin-left: 3px; }
 .kcard.na .kval { color: var(--muted); }
 .ktxt { margin: 0; font-size: var(--t-sm); color: var(--ink-2); }
@@ -321,7 +321,7 @@ code.bruto { white-space: pre; font-size: var(--t-xs); background: transparent; 
 }
 .et-t { font: 600 var(--t-xs)/1.3 var(--f-body); color: var(--muted); }
 .et-t::before { content: counter(etapa) ". "; }
-.et-a { font: 650 var(--t-lg)/1.2 var(--f-display); font-stretch: 90%; }
+.et-a { font: 650 clamp(14px, 11cqi, var(--t-lg))/1.2 var(--f-display); font-stretch: 90%; }
 .et-d { font-size: var(--t-xs); color: var(--ink-2); }
 
 /* Qualidade */
@@ -351,6 +351,7 @@ code.bruto { white-space: pre; font-size: var(--t-xs); background: transparent; 
 .progresso p { margin: 0; font-size: var(--t-sm); }
 .msg-ok { color: var(--ink); background: color-mix(in srgb, var(--good) 12%, transparent); padding: 10px 12px; border-radius: var(--r-sm); }
 .msg-erro { color: var(--critical); background: color-mix(in srgb, var(--critical) 10%, transparent); padding: 10px 12px; border-radius: var(--r-sm); }
+.msg-aviso { color: var(--ink); background: color-mix(in srgb, var(--warning) 22%, transparent); border-left: 3px solid var(--warning); padding: 10px 12px; border-radius: var(--r-sm); }
 .formato p { margin: 0 0 8px; font-size: var(--t-sm); color: var(--ink-2); }
 .formato pre { margin: 0 0 10px; background: var(--well); border-radius: var(--r-sm); padding: 10px 12px; overflow-x: auto; font-size: var(--t-xs); }
 .formato pre code { background: transparent; padding: 0; }
@@ -380,3 +381,47 @@ footer { color: var(--muted); font-size: var(--t-xs); text-align: center; }
 /* Tabela de dados brutos: pares de cada registro empilhados na célula */
 .pares-bruto { display: grid; gap: 3px; }
 .par-bruto { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+
+/* ---------- Ajuste ao conteúdo ----------
+   Nenhuma caixa depende do tamanho do texto que recebe: nomes de arquivo, caminhos, números
+   grandes e mensagens quebram ou encolhem dentro dela, em qualquer largura de tela. */
+
+/* Filhos de grid e flex podem encolher abaixo do tamanho do conteúdo (o padrão "auto" impede) */
+.bloco > *, .kcard > *, .painel > *, .duas > *, .kgrid > *, .envio > *, .verif-c > *,
+.kcard header > *, .bloco-h > *, .funil-t > *, .item > *, .etapas li > * { min-width: 0; }
+
+/* Números dos cartões e das etapas encolhem com a largura do próprio cartão */
+.kcard, .etapas li { container-type: inline-size; }
+.kval, .et-a { overflow-wrap: anywhere; }
+
+/* Texto corrido quebra até no meio de palavras longas (caminhos, nomes de arquivo, ids) */
+.ktxt, .kcard h3, .bloco-h h2, .bloco-h p, .msg, .aviso-box, .msg-ok, .msg-erro, .msg-aviso,
+.arquivo-t, .arquivo-n, .item-t, .item-d, .funil-r, .funil-d, .verif p, .verif-n, .et-d,
+.formato p, .nota, .hint, .como p, .passos, .lede, .tip, .marca .sub, footer, .count, .instante {
+  overflow-wrap: anywhere;
+}
+:not(pre) > code { overflow-wrap: anywhere; }
+
+/* Exemplo de arquivo: as linhas quebram em vez de empurrar a caixa */
+.formato pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: visible; }
+
+/* Valor do funil desce para a linha de baixo quando não cabe ao lado do rótulo */
+.funil-t { flex-wrap: wrap; }
+.funil-v { white-space: nowrap; margin-left: auto; }
+
+/* Rótulos de ranking longos (facções, arquivos) cortam com reticências; o texto inteiro fica no title */
+.hbar-r { overflow: hidden; text-overflow: ellipsis; }
+
+/* Selos e cabeçalhos dos cartões */
+.kcard header { flex-wrap: wrap; }
+.verif-h > * { overflow-wrap: anywhere; }
+
+/* Controles nunca mais largos que a caixa */
+.field, select.field, .ferramenta input[type="range"] { max-width: 100%; }
+.ctl, .ctl > * { min-width: 0; }
+.ctl select.field { text-overflow: ellipsis; }
+.btn { max-width: 100%; white-space: normal; text-align: center; }
+.confirma { min-width: 0; }
+
+/* Nome de arquivo nas tabelas: corta com reticências, nome inteiro no title */
+.arq-nome { display: inline-block; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }

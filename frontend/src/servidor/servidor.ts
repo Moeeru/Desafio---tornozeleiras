@@ -7,14 +7,16 @@
  *   GET    /api/saude           verificação simples
  *   GET    /api/dados           dados atuais, lidos dos arquivos a cada requisição
  *   GET    /api/brutos?ds=todos|N&p=P&t=T   uma página da tabela de dados brutos, com o tratamento de cada linha
- *   POST   /api/datasets        inclui um arquivo de dados (corpo = conteúdo do arquivo) e processa
- *   DELETE /api/datasets/N      remove um dataset incluído (N > 7)
+ *   GET    /api/datasets/verificar?nome=X   o nome já existe no backend? (antes de enviar)
+ *   POST   /api/datasets        inclui um arquivo de dados (corpo = conteúdo, cabeçalho X-Nome-Arquivo = nome original) e processa
+ *   DELETE /api/datasets/N      remove um dataset incluído (os oficiais são recusados pelo backend)
  *   GET    /painel.html         versão autocontida, igual à gerada por `npm run bi`
  *
  * O BI não executa a detecção por conta própria: para dados brutos, inclusão e remoção ele chama
  * os comandos do backend (backend/dist/cli/*.js), que são a única fonte das regras.
  *
- * Uso: npm run bi:serve                 (porta 4173)
+ * Porta e limite de upload vêm de radar.config.json (bi.porta, bi.limiteUploadMB).
+ * Uso: npm run bi:serve
  *      npm run bi:serve -- --porta 8080
  */
 import { execFile } from 'child_process';
@@ -22,6 +24,8 @@ import fs from 'fs';
 import http from 'http';
 import os from 'os';
 import path from 'path';
+import type { CodigoErro, VerificacaoArquivo } from '../../../shared/contrato';
+import { CONFIG, LIMITE_UPLOAD_BYTES } from './config';
 import { carregarDados } from './dados';
 import { FRONT_DIST, FRONT_PUBLIC, ROOT, montarHtmlAutocontido } from './gerarPainel';
 
@@ -32,13 +36,23 @@ const TIPOS: Record<string, string> = {
   '.json': 'application/json; charset=utf-8'
 };
 const CLI = path.join(ROOT, 'backend', 'dist', 'cli');
-const LIMITE_UPLOAD = 2 * 1024 ** 3; // 2 GB
+const LIMITE_TEXTO = CONFIG.bi.limiteUploadMB >= 1024
+  ? `${(CONFIG.bi.limiteUploadMB / 1024).toLocaleString('pt-BR')} GB` : `${CONFIG.bi.limiteUploadMB} MB`;
+
+/** Erro de um comando do backend, com o código que ele informou (ja_existe, nome_invalido...). */
+class ErroBackend extends Error {
+  constructor(mensagem: string, readonly codigo: CodigoErro = 'outro') { super(mensagem); }
+}
+const statusDoErro = (e: unknown): number => {
+  const c = e instanceof ErroBackend ? e.codigo : 'outro';
+  return c === 'ja_existe' || c === 'conteudo_duplicado' ? 409 : 400;
+};
 
 function lerPorta(): number {
   const args = process.argv.slice(2);
   const i = args.findIndex(a => a === '--porta' || a === '-p');
   const valor = i >= 0 ? args[i + 1] : args.find(a => a.startsWith('--porta='))?.split('=')[1];
-  const n = Number(valor ?? process.env.PORT ?? 4173);
+  const n = Number(valor ?? process.env.PORT ?? CONFIG.bi.porta);
   if (!Number.isInteger(n) || n < 1 || n > 65535) {
     console.error(`[ERRO] Porta inválida: ${valor}. Use um número de 1 a 65535, por exemplo: npm run bi:serve -- --porta 8080`);
     process.exit(1);
@@ -52,7 +66,10 @@ function enviar(res: http.ServerResponse, status: number, tipo: string, corpo: s
   res.end(corpo);
 }
 const json = (res: http.ServerResponse, status: number, obj: unknown): void => enviar(res, status, TIPOS['.json'], JSON.stringify(obj));
-const erro = (res: http.ServerResponse, status: number, msg: string): void => json(res, status, { erro: msg });
+const erro = (res: http.ServerResponse, status: number, msg: string, codigo?: CodigoErro): void =>
+  json(res, status, codigo ? { erro: msg, codigo } : { erro: msg });
+const erroDe = (res: http.ServerResponse, e: unknown): void =>
+  erro(res, statusDoErro(e), (e as Error).message, e instanceof ErroBackend ? e.codigo : undefined);
 
 function arquivo(res: http.ServerResponse, caminho: string): void {
   fs.readFile(caminho, (err, buf) => {
@@ -72,7 +89,7 @@ function rodarBackend(script: string, args: string[], timeoutMs: number): Promis
       const ultima = stdout.trim().split('\n').pop() ?? '';
       let saida: Record<string, unknown> | null = null;
       try { saida = JSON.parse(ultima) as Record<string, unknown>; } catch { /* saída não é JSON */ }
-      if (saida && typeof saida.erro === 'string') return reject(new Error(saida.erro));
+      if (saida && typeof saida.erro === 'string') return reject(new ErroBackend(saida.erro, saida.codigo as CodigoErro | undefined));
       if (err && !saida) return reject(new Error(err.killed ? 'O comando demorou demais e foi interrompido.' : err.message));
       resolve(saida ?? {});
     });
@@ -95,30 +112,51 @@ function origemConfiavel(req: http.IncomingMessage): boolean {
 
 let inclusaoEmAndamento = false;
 
+/** Pergunta ao backend se o nome pode ser usado e se já existe um arquivo com ele. */
+const verificarNome = (nome: string): Promise<VerificacaoArquivo> =>
+  rodarBackend('incluir.js', ['--verificar', nome, '--json'], 30 * 1000) as unknown as Promise<VerificacaoArquivo>;
+
+/** Recusa sem ler o corpo: o navegador para de enviar quando a conexão fecha. */
+function recusarEnvio(req: http.IncomingMessage, res: http.ServerResponse, status: number, msg: string, codigo?: CodigoErro): void {
+  res.setHeader('Connection', 'close');
+  erro(res, status, msg, codigo);
+  req.resume();
+}
+
 async function incluir(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-  if (inclusaoEmAndamento) return erro(res, 409, 'Já há um arquivo sendo processado. Aguarde terminar.');
+  if (inclusaoEmAndamento) return recusarEnvio(req, res, 409, 'Já há um arquivo sendo processado. Aguarde terminar.');
   const declarado = Number(req.headers['content-length'] ?? 0);
-  if (declarado > LIMITE_UPLOAD) return erro(res, 413, 'Arquivo maior que 2 GB.');
+  if (declarado > LIMITE_UPLOAD_BYTES) return recusarEnvio(req, res, 413, `Arquivo maior que ${LIMITE_TEXTO}.`);
+  let nome = '';
+  try { nome = decodeURIComponent(String(req.headers['x-nome-arquivo'] ?? '')); } catch { /* nome mal codificado */ }
+  if (!nome) return recusarEnvio(req, res, 400, 'Informe o nome do arquivo no cabeçalho X-Nome-Arquivo.', 'nome_invalido');
+
   inclusaoEmAndamento = true;
-  const temp = path.join(os.tmpdir(), `radar-upload-${process.pid}-${Date.now()}.txt`);
+  const temp = path.join(os.tmpdir(), `radar-upload-${process.pid}-${Date.now()}.tmp`);
   try {
+    // Confere antes de receber o arquivo: se o nome já existe, não vale a pena enviar centenas de MB
+    const v = await verificarNome(nome);
+    if (!v.valido) return recusarEnvio(req, res, 400, v.mensagem, 'nome_invalido');
+    if (v.existe) return recusarEnvio(req, res, 409, `${v.mensagem} O arquivo não foi enviado.`, 'ja_existe');
+
     await new Promise<void>((resolve, reject) => {
       let recebidos = 0;
       const destino = fs.createWriteStream(temp);
       req.on('data', (parte: Buffer) => {
         recebidos += parte.length;
-        if (recebidos > LIMITE_UPLOAD) { req.destroy(); reject(new Error('Arquivo maior que 2 GB.')); }
+        if (recebidos > LIMITE_UPLOAD_BYTES) { req.destroy(); reject(new Error(`Arquivo maior que ${LIMITE_TEXTO}.`)); }
       });
       req.pipe(destino);
       destino.on('finish', () => (recebidos ? resolve() : reject(new Error('O arquivo enviado está vazio.'))));
       destino.on('error', reject);
       req.on('error', reject);
     });
-    const r = await rodarBackend('incluir.js', [temp, '--mover', '--json'], 30 * 60 * 1000);
+    // O backend confere de novo (nome, cabeçalho, conteúdo repetido) e grava com o nome original
+    const r = await rodarBackend('incluir.js', [temp, '--nome', v.nome, '--mover', '--json'], 30 * 60 * 1000);
     cacheBrutos.clear();
     json(res, 200, r);
   } catch (e) {
-    erro(res, 400, (e as Error).message);
+    if (!res.headersSent) erroDe(res, e);
   } finally {
     inclusaoEmAndamento = false;
     fs.rm(temp, { force: true }, () => undefined);
@@ -130,6 +168,10 @@ async function rotear(req: http.IncomingMessage, res: http.ServerResponse): Prom
   const p = url.pathname;
   const metodo = req.method ?? 'GET';
 
+  if (p === '/api/datasets/verificar' && metodo === 'GET') {
+    const nome = url.searchParams.get('nome') ?? '';
+    try { return json(res, 200, await verificarNome(nome)); } catch (e) { return erroDe(res, e); }
+  }
   if (p === '/api/datasets' && metodo === 'POST') {
     if (!origemConfiavel(req)) return erro(res, 403, 'Requisição recusada: só o próprio painel pode incluir dados.');
     return incluir(req, res);
@@ -142,7 +184,7 @@ async function rotear(req: http.IncomingMessage, res: http.ServerResponse): Prom
       cacheBrutos.clear();
       return json(res, 200, r);
     } catch (e) {
-      return erro(res, 400, (e as Error).message);
+      return erroDe(res, e);
     }
   }
   if (metodo !== 'GET' && metodo !== 'HEAD') return erro(res, 405, 'Método não aceito nesta rota.');
@@ -151,7 +193,7 @@ async function rotear(req: http.IncomingMessage, res: http.ServerResponse): Prom
   if (p === '/estilos.css') return arquivo(res, path.join(FRONT_PUBLIC, 'estilos.css'));
   if (p === '/api/saude') return json(res, 200, { ok: true });
   if (p === '/api/dados') {
-    try { return json(res, 200, await carregarDados(ROOT, 'servidor')); } catch (e) { return erro(res, 500, (e as Error).message); }
+    try { return json(res, 200, await carregarDados('servidor', PORTA)); } catch (e) { return erro(res, 500, (e as Error).message); }
   }
   if (p === '/api/brutos') {
     const ds = url.searchParams.get('ds') ?? 'todos';
@@ -172,7 +214,7 @@ async function rotear(req: http.IncomingMessage, res: http.ServerResponse): Prom
     }
   }
   if (p === '/painel.html') {
-    try { return enviar(res, 200, TIPOS['.html'], montarHtmlAutocontido(await carregarDados(ROOT, 'arquivo'))); }
+    try { return enviar(res, 200, TIPOS['.html'], montarHtmlAutocontido(await carregarDados('arquivo', PORTA))); }
     catch (e) { return erro(res, 500, (e as Error).message); }
   }
   if (p.startsWith('/app/') && p.endsWith('.js')) {

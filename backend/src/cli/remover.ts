@@ -1,11 +1,12 @@
 /**
- * Remove um dataset incluído (número maior que 7): entrada, resposta, métricas e índice.
- * Os 7 datasets oficiais não podem ser removidos por aqui.
+ * Remove um dataset incluído: arquivo de entrada, resposta, métricas, índice e entrada no catálogo.
+ * Os oficiais (datasetsOficiais em radar.config.json) não podem ser removidos por aqui.
  *
  *   npm run remover -- 8
  */
 import fs from 'fs';
-import { arquivoDataset, arquivoIndice, arquivoResposta, DATASETS_OFICIAIS } from '../arquivos/datasets';
+import path from 'path';
+import { arquivoIndice, arquivoResposta, catalogo, PASTAS, retirarDoCatalogo } from '../arquivos/datasets';
 import { gravarExecucao, lerExecucao } from '../arquivos/metricas';
 
 const json = process.argv.includes('--json');
@@ -17,15 +18,16 @@ function sair(ok: boolean, msg: string): never {
   process.exit(ok ? 0 : 1);
 }
 
-if (!Number.isInteger(n) || n <= DATASETS_OFICIAIS) {
-  sair(false, `Informe um dataset incluído (número maior que ${DATASETS_OFICIAIS}). Os oficiais não são removidos.`);
-}
-if (!fs.existsSync(arquivoDataset(n))) sair(false, `Inputs/dataset${n}.txt não existe.`);
+const d = catalogo(true).find(x => x.n === n);
+const incluidos = catalogo().filter(x => !x.oficial).map(x => `${x.n} (${x.arquivo})`).join(', ') || 'nenhum';
+if (!Number.isInteger(n) || !d) sair(false, `Informe o número de um dataset incluído. Incluídos: ${incluidos}.`);
+if (d.oficial) sair(false, `O dataset ${n} (${d.arquivo}) é oficial e não pode ser removido.`);
 
-for (const f of [arquivoDataset(n), arquivoResposta(n), arquivoIndice(n)]) {
+for (const f of [path.join(PASTAS.inputs, d.arquivo), arquivoResposta(n), arquivoIndice(n)]) {
   if (fs.existsSync(f)) fs.unlinkSync(f);
 }
+retirarDoCatalogo(n);
 const metricas = lerExecucao();
 metricas.delete(n);
 gravarExecucao(metricas);
-sair(true, `Dataset ${n} removido.`);
+sair(true, `Dataset ${n} (${d.arquivo}) removido.`);

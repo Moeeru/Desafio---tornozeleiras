@@ -40,7 +40,7 @@ Além do desafio, o projeto tem um **BI** para analisar os resultados e uma **au
 ```mermaid
 flowchart LR
   subgraph Entrada
-    I[Inputs/datasetN.txt]
+    I[Inputs/*.txt, *.csv]
   end
   subgraph Backend["Backend (solução do desafio)"]
     L[Leitura em blocos<br/>e parsing de bytes] --> G[Agrupamento<br/>por instante]

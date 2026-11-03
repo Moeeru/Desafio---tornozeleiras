@@ -6,6 +6,8 @@ import { haversineDistance, isWithinBoundingBox, DEFAULT_EARTH_RADIUS_METERS } f
 import { classifyEncounter } from '../deteccao/classifier';
 import { Encounter, MonitoredEntity } from '../deteccao/types';
 import { RAIZ } from '../arquivos/raiz';
+import { arquivoDataset, PASTAS } from '../arquivos/datasets';
+import { ARQUIVO_VALIDACAO } from '../arquivos/metricas';
 import type { Validacao } from '../../../shared/contrato';
 
 let passedTests = 0;
@@ -168,8 +170,8 @@ async function runTests() {
   // Teste 4: Validação contra os gabaritos oficiais. Arquivo ausente conta como falha.
   console.log('\n4. Teste de Validação com os Datasets Oficiais de Teste:');
   for (const n of [1, 2]) {
-    const dsPath = path.join(rootDir, 'Inputs', `dataset${n}.txt`);
-    const expPath = path.join(rootDir, 'Respostas esperadas', `respostas${n}.json`);
+    const dsPath = arquivoDataset(n);
+    const expPath = path.join(PASTAS.gabaritos, `respostas${n}.json`);
     const missing = [dsPath, expPath].filter(p => !fs.existsSync(p));
     if (missing.length) {
       assert(false, `Dataset ${n}: arquivo(s) não encontrado(s): ${missing.join(', ')}`);
@@ -185,7 +187,7 @@ async function runTests() {
   // que os timestamps chegam em sequência, nos datasets sem gabarito.
   console.log('\n5. Teste de Regressão contra Implementação de Referência:');
   for (const n of [3, 4, 5]) {
-    const dsPath = path.join(rootDir, 'Inputs', `dataset${n}.txt`);
+    const dsPath = arquivoDataset(n);
     if (!fs.existsSync(dsPath)) {
       assert(false, `Dataset ${n}: arquivo não encontrado: ${dsPath}`);
       continue;
@@ -232,7 +234,7 @@ async function runTests() {
   // Teste 7: Arquivos oficiais limpos não geram nenhuma falha de coleta
   console.log('\n7. Teste de Qualidade dos Datasets Oficiais 1 a 5:');
   for (const n of [1, 2, 3, 4, 5]) {
-    const dsPath = path.join(rootDir, 'Inputs', `dataset${n}.txt`);
+    const dsPath = arquivoDataset(n);
     if (!fs.existsSync(dsPath)) { assert(false, `Dataset ${n}: arquivo não encontrado`); continue; }
     const det = new EncounterDetector();
     await det.processFile(dsPath);
@@ -258,7 +260,7 @@ async function runTests() {
     '9;8;"2024-01-01 00:00:05";-0.0;0.00000;false;'                    // sem quebra de linha no fim
   ].join('\r\n'), 'utf8');
   const casosEquivalencia: [string, string][] = [
-    ...[1, 2, 3, 4, 5].map(n => [`Dataset ${n}`, path.join(rootDir, 'Inputs', `dataset${n}.txt`)] as [string, string]),
+    ...[1, 2, 3, 4, 5].map(n => [`Dataset ${n}`, arquivoDataset(n)] as [string, string]),
     ['dataset-com-falhas.txt', falhasPath],
     ['casos-limite de formatação', limites]
   ];
@@ -274,7 +276,7 @@ async function runTests() {
   }
   fs.rmSync(limites, { force: true });
 
-  const validacaoPath = path.join(rootDir, 'metricas', 'validacao.json');
+  const validacaoPath = ARQUIVO_VALIDACAO;
   fs.mkdirSync(path.dirname(validacaoPath), { recursive: true });
   fs.writeFileSync(
     validacaoPath,

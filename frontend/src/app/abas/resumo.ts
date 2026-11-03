@@ -5,6 +5,7 @@ import { $ } from '../nucleo/dom.js';
 import { compact, nf, nf1, pct, plural } from '../nucleo/formato.js';
 import { acoes } from '../nucleo/estado.js';
 import { descreverRecorte, recorte } from '../nucleo/filtros.js';
+import { limiteTxt } from '../nucleo/modelo.js';
 import { contagemTipos, estatEncontros, estatFaccoes, estatVitimas, falhasDe, funilDe } from '../nucleo/indicadores.js';
 import type { DefAba } from './aba.js';
 
@@ -34,12 +35,12 @@ function renderResumo(el: HTMLElement): void {
     {
       id: 'r-enc', titulo: 'Encontros detectados', valor: nf.format(enc.total),
       texto: `${plural(enc.pares, 'par de pessoas', 'pares de pessoas')} diferentes, em ${plural(enc.episodios, 'episódio', 'episódios')}.`,
-      como: 'Pares a menos de 20 m no mesmo instante, um registro por par em cada timestamp (regra do desafio). Leituras seguidas do mesmo par formam um episódio.',
+      como: `Pares a menos de ${limiteTxt()} no mesmo instante, um registro por par em cada timestamp (regra do desafio). Leituras seguidas do mesmo par formam um episódio.`,
       acao: { rotulo: 'Ver encontros', id: 'r-go-enc' }
     },
     {
       id: 'r-viol', titulo: 'Violações de medida protetiva', valor: nf.format(vit.violacoes),
-      texto: 'Vezes em que um agressor ficou a menos de 20 m da vítima protegida contra ele.',
+      texto: `Vezes em que um agressor ficou a menos de ${limiteTxt()} da vítima protegida contra ele.`,
       status: vit.violacoes ? 'critico' : 'ok', rotuloStatus: vit.violacoes ? 'Crítico' : 'Nenhuma',
       acao: { rotulo: 'Ver vítimas', id: 'r-go-vit' }
     },
@@ -83,7 +84,7 @@ function renderResumo(el: HTMLElement): void {
       <div class="painel"><h3>Pares comparados</h3>${funilHtml([
         { rotulo: 'Pares possíveis', valor: funil.paresComparados, desc: 'Todas as combinações de duas pessoas dentro de cada instante.' },
         { rotulo: 'Passaram o pré-filtro', valor: funil.paresPreFiltro, desc: 'Só esses têm a distância calculada pela fórmula de Haversine.' },
-        { rotulo: 'A menos de 20 m', valor: funil.paresProximos, desc: `${nf.format(funil.paresIgnorados)} descartados pela regra da vítima sem relação com o outro.` },
+        { rotulo: `A menos de ${limiteTxt()}`, valor: funil.paresProximos, desc: `${nf.format(funil.paresIgnorados)} descartados pela regra da vítima sem relação com o outro.` },
         { rotulo: 'Encontros registrados', valor: funil.encontros, desc: 'Gravados em outputs/respostasN.json.' }
       ])}</div>
     </div>` : '<p class="vazio">Rode <code>npm start</code> para medir o caminho dos registros.</p>';

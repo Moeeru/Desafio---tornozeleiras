@@ -5,6 +5,7 @@ import { fmtDur, nf, nf1, pct, plural } from '../nucleo/formato.js';
 import { acoes, filtros, ui } from '../nucleo/estado.js';
 import { recorte } from '../nucleo/filtros.js';
 import { estatVitimas } from '../nucleo/indicadores.js';
+import { intervaloTxt, limiteTxt } from '../nucleo/modelo.js';
 import type { DefAba } from './aba.js';
 
 const LIMITE_LISTA_VITIMAS = 8;
@@ -16,7 +17,7 @@ function renderVitimas(el: HTMLElement): void {
 
   const cartoes: Cartao[] = [
     { id: 'v-viol', titulo: 'Violações de medida protetiva', valor: nf.format(s.violacoes),
-      texto: 'Vezes em que o agressor ficou a menos de 20 m da vítima.', status: s.violacoes ? 'critico' : 'ok', rotuloStatus: s.violacoes ? 'Crítico' : 'Nenhuma',
+      texto: `Vezes em que o agressor ficou a menos de ${limiteTxt()} da vítima.`, status: s.violacoes ? 'critico' : 'ok', rotuloStatus: s.violacoes ? 'Crítico' : 'Nenhuma',
       como: 'Encontros do tipo protetiva: uma pessoa tem medida protetiva e a outra está na lista de restrição dela.' },
     { id: 'v-af', titulo: 'Vítimas afetadas', valor: s.total ? `${s.afetadas}<small>/${s.total}</small>` : '–',
       texto: s.total ? `${pct(s.afetadas, s.total)}% das vítimas cadastradas no recorte.` : 'Nenhuma vítima neste recorte.', status: s.afetadas ? 'critico' : '' },
@@ -25,7 +26,7 @@ function renderVitimas(el: HTMLElement): void {
     { id: 'v-agr', titulo: 'Agressores reincidentes', valor: s.agressores ? nf.format(s.agressoresReincidentes) : '–',
       texto: s.agressores ? `de ${plural(s.agressores, 'agressor', 'agressores')} com violação voltaram a se aproximar.` : 'Sem violações.',
       status: s.agressoresReincidentes ? 'atencao' : s.agressores ? 'ok' : '', rotuloStatus: s.agressoresReincidentes ? 'Atenção' : 'Nenhum',
-      como: 'Agressores com mais de um episódio de violação. Leituras seguidas (a cada 5 s) contam como um episódio só.' },
+      como: `Agressores com mais de um episódio de violação. Leituras seguidas (a cada ${intervaloTxt()}) contam como um episódio só.` },
     { id: 'v-min', titulo: 'Menor distância agressor–vítima', valor: s.menor == null ? '–' : `${nf1.format(s.menor)}<small>m</small>`,
       texto: s.violacoes ? `${plural(abaixo, 'violação ficou', 'violações ficaram')} abaixo de ${ui.lim} m.` : 'Sem violações.',
       status: abaixo ? 'critico' : '', rotuloStatus: 'Muito perto' },

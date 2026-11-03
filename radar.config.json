@@ -1,0 +1,30 @@
+{
+  "pastas": {
+    "entradas": "Inputs",
+    "saidas": "outputs",
+    "metricas": "metricas",
+    "gabaritos": "Respostas esperadas"
+  },
+  "datasetsOficiais": [
+    "dataset1.txt",
+    "dataset2.txt",
+    "dataset3.txt",
+    "dataset4.txt",
+    "dataset5.txt",
+    "dataset6.txt",
+    "dataset7.txt"
+  ],
+  "formato": {
+    "cabecalho": "idMonitorado;faccaoMonitorado;timestamp;latitude;longitude;medidaProtetiva;idsRestricaoMedida",
+    "extensoes": [".txt", ".csv"],
+    "intervaloLeituraSegundos": 5
+  },
+  "deteccao": {
+    "distanciaLimiteMetros": 20,
+    "raioTerraMetros": 6371000
+  },
+  "bi": {
+    "porta": 4173,
+    "limiteUploadMB": 2048
+  }
+}

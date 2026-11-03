@@ -6,7 +6,7 @@ import type { TipoFalha } from '../../../../shared/contrato.js';
 import { gradeCartoes, secao, vazio, type Cartao } from '../componentes/cartoes.js';
 import { onEach } from '../nucleo/dom.js';
 import { compact, esc, nf, nf1, pct, plural } from '../nucleo/formato.js';
-import { M } from '../nucleo/modelo.js';
+import { limiteTxt, M } from '../nucleo/modelo.js';
 import { acoes } from '../nucleo/estado.js';
 import { recorte } from '../nucleo/filtros.js';
 import { falhasDe, funilDe } from '../nucleo/indicadores.js';
@@ -48,7 +48,7 @@ function renderQualidade(el: HTMLElement): void {
       texto: funil ? `${nf.format(funil.registrosDescartados)} descartados por falha de coleta.` : '',
       status: funil && funil.registrosDescartados ? 'atencao' : funil ? 'ok' : '' },
     { id: 'q-uteis', titulo: 'Registros úteis', valor: funil ? nf.format(funil.registrosEmEncontro) : '–',
-      texto: funil ? `fazem parte de um encontro. Os demais ${compact(funil.registrosValidos - funil.registrosEmEncontro)} não tinham ninguém a menos de 20 m.` : '',
+      texto: funil ? `fazem parte de um encontro. Os demais ${compact(funil.registrosValidos - funil.registrosEmEncontro)} não tinham ninguém a menos de ${limiteTxt()}.` : '',
       como: 'Registros que participam de pelo menos um encontro. Cada encontro usa dois registros; um registro pode estar em mais de um encontro.' },
     { id: 'q-comp', titulo: 'Completude das leituras', valor: completude == null ? '–' : `${nf1.format(completude)}<small>%</small>`,
       texto: 'Leituras recebidas ÷ leituras esperadas (pessoas × instantes).', status: completude == null ? '' : completude >= 99.95 ? 'ok' : 'atencao' }

@@ -2,13 +2,15 @@
  * Modelo derivado dos dados brutos: datasets com cadastro, encontros enriquecidos,
  * pessoas com seus totais, e as agregações usadas pelos indicadores.
  */
-import type { DadosPainel, Execucao, LatLon, TipoEncontro, Validacao, ValidacaoDataset } from '../../../../shared/contrato.js';
-import { INTERVALO_LEITURA_MS, STACK, TIPOS } from './constantes.js';
+import type { DadosPainel, Execucao, LatLon, ParametrosPainel, TipoEncontro, Validacao, ValidacaoDataset } from '../../../../shared/contrato.js';
+import { STACK, TIPOS } from './constantes.js';
 import { tsMs } from './formato.js';
 
 export interface DsInfo {
   n: number;
-  /** Um dos 7 datasets do desafio (os demais foram incluídos depois). */
+  /** Nome do arquivo de entrada, como foi enviado ('' se desconhecido). */
+  arquivo: string;
+  /** Listado como oficial em radar.config.json (os demais foram incluídos depois). */
   oficial: boolean;
   pessoas: Record<string, [string, boolean, number[]]>;
   vitimas: number[];
@@ -67,7 +69,7 @@ export interface Episodio {
   end: number;
   n: number;
   minM: number;
-  /** Duração em segundos (uma leitura vale 5 s). */
+  /** Duração em segundos (uma leitura vale o intervalo entre leituras). */
   dur: number;
 }
 
@@ -87,6 +89,20 @@ export interface Modelo {
 /** Modelo atual. Mutado por montarModelo, para que todos os módulos vejam a versão mais recente. */
 export const M = {} as Modelo;
 
+/** Parâmetros da configuração (radar.config.json) que vieram com os dados. */
+export const P = (): ParametrosPainel => M.dados.parametros;
+/** "20 m": a distância limite de um encontro. */
+export const limiteTxt = (): string => `${P().distanciaLimiteMetros.toLocaleString('pt-BR')} m`;
+/** "5 s": o intervalo entre leituras. */
+export const intervaloTxt = (): string => `${P().intervaloLeituraSegundos.toLocaleString('pt-BR')} s`;
+const intervaloMs = (): number => P().intervaloLeituraSegundos * 1000;
+/** Nome curto para listas ("D3") e completo para títulos ("D3 · coleta.txt"). */
+export const rotuloDs = (n: number): string => `D${n}`;
+export const nomeDs = (n: number): string => {
+  const a = M.DSN?.[n]?.arquivo;
+  return a ? `D${n} · ${a}` : `D${n}`;
+};
+
 export const pairKey = (e: { ds: number; a: number; b: number }): string => `${e.ds}:${e.a}-${e.b}`;
 const contarTipos = (lista: { tipo: TipoEncontro }[]): Record<TipoEncontro, number> =>
   Object.fromEntries(TIPOS.map(t => [t.k, lista.filter(e => e.tipo === t.k).length])) as Record<TipoEncontro, number>;
@@ -103,7 +119,8 @@ export function montarModelo(D: DadosPainel): Modelo {
     const periodoOk = Number.isFinite(ini) && Number.isFinite(fim);
     return {
       n: ds.n,
-      oficial: ds.oficial ?? ds.n <= 7,
+      arquivo: ds.arquivo ?? '',
+      oficial: !!ds.oficial,
       pessoas: p,
       vitimas: ids.filter(id => p[id][1]).map(Number),
       monitorados: ids.filter(id => !p[id][1]).map(Number),
@@ -156,11 +173,12 @@ export function encOf(dss: DsInfo[]): Enc[] {
   return M.ENC.filter(e => s.has(e.ds));
 }
 
-/** Leituras seguidas (a cada 5 s) do mesmo par formam um episódio. */
+/** Leituras seguidas (uma por intervalo de leitura) do mesmo par formam um episódio. */
 export function episodesOf(E: Enc[]): Episodio[] {
   const g = new Map<string, Enc[]>();
   E.forEach(e => { const k = pairKey(e); if (!g.has(k)) g.set(k, []); g.get(k)!.push(e); });
   const out: Episodio[] = [];
+  const INTERVALO_LEITURA_MS = intervaloMs();
   for (const list of g.values()) {
     list.sort((a, b) => a.t - b.t);
     let cur: Episodio | null = null;
@@ -183,6 +201,7 @@ export const pessoasOf = (d: DsInfo): number => d.vitimas.length + d.monitorados
  * parte do monitoramento que cai dentro dele.
  */
 export function horasPessoa(dss: DsInfo[], de: number | null = null, ate: number | null = null): number {
+  const INTERVALO_LEITURA_MS = intervaloMs();
   return dss.reduce((s, d) => {
     if (!d.temCadastro) return s;
     const ini = Math.max(d.ini, de ?? -Infinity);

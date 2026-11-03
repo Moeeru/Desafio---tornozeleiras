@@ -29,7 +29,7 @@ function falhar(msg: string): never {
 const disponiveis = listarDatasets();
 const pedido = arg('dataset');
 const umDataset = pedido && pedido !== 'todos' ? Number(pedido) : null;
-if (umDataset !== null && !disponiveis.includes(umDataset)) falhar(`Inputs/dataset${pedido}.txt não existe.`);
+if (umDataset !== null && !disponiveis.includes(umDataset)) falhar(`O dataset ${pedido} não existe ou o arquivo dele não está na pasta de entradas.`);
 const tamanho = Math.min(1000, Math.max(1, Number(arg('tamanho') ?? 100) || 100));
 const paginaPedida = Math.max(1, Number(arg('pagina') ?? 1) || 1);
 

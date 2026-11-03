@@ -25,15 +25,15 @@
     },
     "falhas": {},
     "encounters": 4,
-    "peakRssBytes": 61480960,
-    "processMs": 25.847700000000003,
-    "totalMs": 27.657600000000002,
+    "peakRssBytes": 63164416,
+    "processMs": 29.5415,
+    "totalMs": 31.02279999999999,
     "breakdown": {
       "generico": 2,
       "faccao": 1,
       "protetiva": 1
     },
-    "executedAt": "2026-11-03T21:05:03.321Z"
+    "executedAt": "2026-11-03T22:57:05.209Z"
   },
   {
     "dataset": 2,
@@ -61,15 +61,15 @@
     },
     "falhas": {},
     "encounters": 6,
-    "peakRssBytes": 62967808,
-    "processMs": 34.72059999999999,
-    "totalMs": 36.26719999999999,
+    "peakRssBytes": 81252352,
+    "processMs": 29.35759999999999,
+    "totalMs": 30.210999999999984,
     "breakdown": {
       "generico": 3,
       "faccao": 2,
       "protetiva": 1
     },
-    "executedAt": "2026-11-03T21:05:03.360Z"
+    "executedAt": "2026-11-03T22:57:05.245Z"
   },
   {
     "dataset": 3,
@@ -97,15 +97,15 @@
     },
     "falhas": {},
     "encounters": 10,
-    "peakRssBytes": 62853120,
-    "processMs": 59.11880000000002,
-    "totalMs": 59.91890000000001,
+    "peakRssBytes": 96890880,
+    "processMs": 58.62180000000001,
+    "totalMs": 59.80080000000001,
     "breakdown": {
       "generico": 5,
       "faccao": 3,
       "protetiva": 2
     },
-    "executedAt": "2026-11-03T21:05:03.422Z"
+    "executedAt": "2026-11-03T22:57:05.308Z"
   },
   {
     "dataset": 4,
@@ -133,15 +133,15 @@
     },
     "falhas": {},
     "encounters": 15,
-    "peakRssBytes": 62222336,
-    "processMs": 241.45170000000002,
-    "totalMs": 242.66219999999998,
+    "peakRssBytes": 96911360,
+    "processMs": 237.21560000000002,
+    "totalMs": 238.61300000000003,
     "breakdown": {
       "generico": 7,
       "faccao": 5,
       "protetiva": 3
     },
-    "executedAt": "2026-11-03T21:05:03.666Z"
+    "executedAt": "2026-11-03T22:57:05.547Z"
   },
   {
     "dataset": 5,
@@ -169,15 +169,15 @@
     },
     "falhas": {},
     "encounters": 21,
-    "peakRssBytes": 79126528,
-    "processMs": 582.1484,
-    "totalMs": 583.0695000000001,
+    "peakRssBytes": 80830464,
+    "processMs": 565.3687,
+    "totalMs": 566.1219,
     "breakdown": {
       "generico": 10,
       "faccao": 7,
       "protetiva": 4
     },
-    "executedAt": "2026-11-03T21:05:04.250Z"
+    "executedAt": "2026-11-03T22:57:06.115Z"
   },
   {
     "dataset": 6,
@@ -205,15 +205,15 @@
     },
     "falhas": {},
     "encounters": 27,
-    "peakRssBytes": 72093696,
-    "processMs": 4814.9518,
-    "totalMs": 4815.8056,
+    "peakRssBytes": 81248256,
+    "processMs": 4794.3711,
+    "totalMs": 4795.187,
     "breakdown": {
       "generico": 12,
       "faccao": 9,
       "protetiva": 6
     },
-    "executedAt": "2026-11-03T21:05:09.067Z"
+    "executedAt": "2026-11-03T22:57:10.911Z"
   },
   {
     "dataset": 7,
@@ -241,14 +241,14 @@
     },
     "falhas": {},
     "encounters": 35,
-    "peakRssBytes": 86761472,
-    "processMs": 7727.8627,
-    "totalMs": 7729.280500000001,
+    "peakRssBytes": 82554880,
+    "processMs": 7148.882100000001,
+    "totalMs": 7150.332399999999,
     "breakdown": {
       "generico": 15,
       "faccao": 12,
       "protetiva": 8
     },
-    "executedAt": "2026-11-03T21:05:16.798Z"
+    "executedAt": "2026-11-03T22:57:18.062Z"
   }
 ]

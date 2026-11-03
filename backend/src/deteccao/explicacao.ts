@@ -5,7 +5,7 @@
  */
 import type { InstanteBruto, ParAnalisado, RegistroBruto } from '../../../shared/contrato';
 import { classifyEncounter } from './classifier';
-import { haversineDistance, isWithinBoundingBox } from './haversine';
+import { DEFAULT_DISTANCE_THRESHOLD_METERS, haversineDistance, isWithinBoundingBox, margensPreFiltro } from './haversine';
 import { parseLine } from './streamParser';
 import type { MonitoredEntity } from './types';
 
@@ -13,8 +13,9 @@ export interface LinhaNumerada { linha: number; texto: string }
 
 export function explicarInstante(
   linhas: LinhaNumerada[],
-  limiteMetros = 20
+  limiteMetros = DEFAULT_DISTANCE_THRESHOLD_METERS
 ): Pick<InstanteBruto, 'registros' | 'pares' | 'resumo'> {
+  const margens = margensPreFiltro(limiteMetros);
   const registros: RegistroBruto[] = [];
   const validos: { reg: RegistroBruto; ent: MonitoredEntity }[] = [];
   const vistos = new Set<number>();
@@ -52,7 +53,7 @@ export function explicarInstante(
       for (const [X, Y] of [[A, B], [B, A]] as const) {
         if (!X.reg.vizinho || d < X.reg.vizinho.distancia) X.reg.vizinho = { id: Y.ent.id, distancia: d };
       }
-      if (!isWithinBoundingBox(A.ent.latitude, A.ent.longitude, B.ent.latitude, B.ent.longitude)) continue;
+      if (!isWithinBoundingBox(A.ent.latitude, A.ent.longitude, B.ent.latitude, B.ent.longitude, margens)) continue;
       paresPreFiltro++;
       A.reg.candidatos!++;
       B.reg.candidatos!++;

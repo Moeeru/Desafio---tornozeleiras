@@ -56,25 +56,46 @@ function encontrosFiltrados(): Enc[] {
 }
 const pessoasFiltradas = (): Pessoa[] => recorte('todos').pes.filter(p => qBate([p.id]));
 
+/** Limites do mapa: a área dos encontros com 8% de folga e um passo "redondo" de grade. */
+function enquadramento(rows: Enc[]): { LAT0: number; LAT1: number; LON0: number; LON1: number; passo: number } {
+  const lats = rows.map(e => e.lat), lons = rows.map(e => e.lon);
+  let LAT0 = lats.length ? Math.min(...lats) : -1, LAT1 = lats.length ? Math.max(...lats) : 1;
+  let LON0 = lons.length ? Math.min(...lons) : -1, LON1 = lons.length ? Math.max(...lons) : 1;
+  const span = Math.max(LAT1 - LAT0, LON1 - LON0, 0.01);
+  const folga = span * 0.08;
+  // Área quadrada em torno do centro, para o mapa não ficar achatado com um só ponto ou uma linha
+  const cLat = (LAT0 + LAT1) / 2, cLon = (LON0 + LON1) / 2, meio = span / 2 + folga;
+  LAT0 = Math.max(-90, cLat - meio); LAT1 = Math.min(90, cLat + meio);
+  LON0 = Math.max(-180, cLon - meio); LON1 = Math.min(180, cLon + meio);
+  const bruto = (2 * meio) / 4, ordem = 10 ** Math.floor(Math.log10(bruto));
+  const passo = [1, 2, 5, 10].map(f => f * ordem).find(p => p >= bruto) ?? 10 * ordem;
+  return { LAT0, LAT1, LON0, LON1, passo };
+}
+
 function desenharMapaRegistros(rows: Enc[]): void {
   const el = document.getElementById('g-mapa');
   if (!el) return;
   const W0 = larguraDe(el);
   if (!W0) return;
   const W = W0 - 24;
-  const LAT0 = -35, LAT1 = 7, LON0 = -75, LON1 = -33, k = Math.cos((14 * Math.PI) / 180);
-  const m = { l: 36, r: 10, t: 10, b: 24 }, iw = W - m.l - m.r;
+  // Enquadramento calculado a partir dos próprios encontros (com folga), em vez de uma região fixa
+  const { LAT0, LAT1, LON0, LON1, passo } = enquadramento(rows);
+  const k = Math.cos((((LAT0 + LAT1) / 2) * Math.PI) / 180);
+  const m = { l: 44, r: 10, t: 10, b: 24 }, iw = W - m.l - m.r;
   const ih = Math.min(560, (iw * (LAT1 - LAT0)) / ((LON1 - LON0) * k)), H = ih + m.t + m.b;
   const x = (lon: number): number => m.l + ((lon - LON0) / (LON1 - LON0)) * iw;
   const y = (lat: number): number => m.t + ((LAT1 - lat) / (LAT1 - LAT0)) * ih;
+  const casas = passo >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(passo)));
+  const grau = (v: number, pos: string, neg: string): string =>
+    Math.abs(v) < passo / 2 ? '0°' : `${Math.abs(v).toFixed(casas).replace('.', ',')}°${v < 0 ? neg : pos}`;
   let s = svgOpen(W, H, `Mapa com ${rows.length} encontros`);
-  for (let lat = -35; lat <= 5; lat += 10) {
+  for (let lat = Math.ceil(LAT0 / passo) * passo; lat <= LAT1; lat += passo) {
     s += `<line class="grid-l" x1="${m.l}" x2="${W - m.r}" y1="${y(lat)}" y2="${y(lat)}"/>`;
-    s += `<text class="ax" x="${m.l - 6}" y="${y(lat) + 4}" text-anchor="end">${lat === 0 ? '0°' : lat < 0 ? `${-lat}°S` : `${lat}°N`}</text>`;
+    s += `<text class="ax" x="${m.l - 6}" y="${y(lat) + 4}" text-anchor="end">${grau(lat, 'N', 'S')}</text>`;
   }
-  for (let lon = -75; lon <= -35; lon += 10) {
+  for (let lon = Math.ceil(LON0 / passo) * passo; lon <= LON1; lon += passo) {
     s += `<line class="grid-l" y1="${m.t}" y2="${m.t + ih}" x1="${x(lon)}" x2="${x(lon)}"/>`;
-    s += `<text class="ax" x="${x(lon)}" y="${H - 6}" text-anchor="middle">${-lon}°O</text>`;
+    s += `<text class="ax" x="${x(lon)}" y="${H - 6}" text-anchor="middle">${grau(lon, 'L', 'O')}</text>`;
   }
   const ordem = [...rows].sort(porEmpilhamento);
   ordem.forEach(e => { s += `<circle class="m-${e.tipo} ring" cx="${x(e.lon).toFixed(1)}" cy="${y(e.lat).toFixed(1)}" r="5"/>`; });

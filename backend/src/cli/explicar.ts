@@ -5,9 +5,8 @@
  *   node backend/dist/cli/explicar.js --dataset 1 --instante 0
  *   node backend/dist/cli/explicar.js --dataset 1 --ts "2024-01-01 00:16:45"
  */
-import fs from 'fs';
 import type { InstanteBruto } from '../../../shared/contrato';
-import { arquivoDataset } from '../arquivos/datasets';
+import { listarDatasets, nomeDataset } from '../arquivos/datasets';
 import { lerInstante, obterIndice } from '../arquivos/indice';
 import { explicarInstante } from '../deteccao/explicacao';
 
@@ -25,10 +24,10 @@ function falhar(msg: string): never {
 
 const n = Number(arg('dataset'));
 if (!Number.isInteger(n) || n < 1) falhar('Informe o dataset: --dataset N');
-if (!fs.existsSync(arquivoDataset(n))) falhar(`Inputs/dataset${n}.txt não existe.`);
+if (!listarDatasets().includes(n)) falhar(`O dataset ${n} não existe ou o arquivo dele não está na pasta de entradas.`);
 
 const idx = obterIndice(n);
-if (!idx.offsets.length) falhar(`Inputs/dataset${n}.txt não tem nenhum instante válido.`);
+if (!idx.offsets.length) falhar(`${nomeDataset(n)} não tem nenhum instante válido.`);
 
 let k: number;
 const ts = arg('ts');

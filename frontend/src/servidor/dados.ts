@@ -1,47 +1,57 @@
 /**
  * Monta os dados do painel a partir dos arquivos do projeto. Usado tanto pelo gerador do
  * HTML autocontido (gerarPainel.ts) quanto pelo servidor (servidor.ts, rota /api/dados).
+ * As pastas vêm de radar.config.json.
  *
+ *   metricas/datasets.json       catálogo: número de cada dataset e o nome do arquivo (gravado pelo backend)
  *   outputs/respostasN.json      encontros detectados (obrigatório)
  *   metricas/execucao.json       tempos, memória e auditoria de qualidade (gravado pelo backend no npm start)
  *   metricas/validacao.json      acerto vs. gabarito e vs. referência (gravado pelo backend no npm test)
- *   Inputs/datasetN.txt          só o primeiro instante (cadastro) e o fim do arquivo (período)
+ *   Inputs/<arquivo>             só o primeiro instante (cadastro) e o fim do arquivo (período)
  */
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
-import type { CadastroBruto, DadosPainel, DatasetBruto, EncontroResposta, Execucao, Validacao } from '../../../shared/contrato';
+import type { CadastroBruto, Catalogo, DadosPainel, DatasetBruto, DatasetCatalogo, EncontroResposta, Execucao, Validacao } from '../../../shared/contrato';
+import { CONFIG, PASTAS, parametrosPainel } from './config';
+import { RAIZ } from './raiz';
 
-/** Os 7 datasets do desafio; os de número maior foram incluídos depois. */
-export const DATASETS_OFICIAIS = 7;
+const rel = (p: string): string => path.relative(RAIZ, p).split(path.sep).join('/');
 
-/** Números de dataset presentes em Inputs/ (datasetN.txt) ou em outputs/ (respostasN.json). */
-export function listarDatasets(root: string): number[] {
-  const nums = new Set<number>();
-  const coletar = (dir: string, re: RegExp): void => {
-    if (!fs.existsSync(dir)) return;
-    for (const nome of fs.readdirSync(dir)) {
-      const m = re.exec(nome);
-      if (m && Number(m[1]) > 0) nums.add(Number(m[1]));
-    }
-  };
-  coletar(path.join(root, 'Inputs'), /^dataset(\d+)\.txt$/i);
-  coletar(path.join(root, 'outputs'), /^respostas(\d+)\.json$/i);
-  return [...nums].sort((a, b) => a - b);
+/**
+ * Datasets do catálogo gravado pelo backend. Sem catálogo (backend nunca rodou), usa os
+ * outputs/respostasN.json encontrados e os nomes oficiais da configuração.
+ */
+export function listarDatasets(): { lista: DatasetCatalogo[]; comCatalogo: boolean } {
+  const arquivo = path.join(PASTAS.metricas, 'datasets.json');
+  const catalogo = lerJson<Catalogo>(arquivo);
+  if (catalogo && Array.isArray(catalogo.datasets)) return { lista: catalogo.datasets, comCatalogo: true };
+
+  const nums = fs.existsSync(PASTAS.saidas)
+    ? fs.readdirSync(PASTAS.saidas).map(nome => /^respostas(\d+)\.json$/i.exec(nome)).filter((m): m is RegExpExecArray => !!m).map(m => Number(m[1]))
+    : [];
+  const lista = nums.sort((a, b) => a - b).map(n => {
+    const arquivoOficial = CONFIG.datasetsOficiais[n - 1];
+    return { n, arquivo: arquivoOficial ?? '', oficial: !!arquivoOficial, existe: !!arquivoOficial && fs.existsSync(path.join(PASTAS.entradas, arquivoOficial)) };
+  });
+  return { lista, comCatalogo: false };
 }
 
 /** O backend compilado, necessário para os dados brutos e para incluir datasets. */
-export const backendCompilado = (root: string): boolean =>
-  fs.existsSync(path.join(root, 'backend', 'dist', 'cli', 'brutos.js'));
+export const backendCompilado = (): boolean => fs.existsSync(path.join(RAIZ, 'backend', 'dist', 'cli', 'brutos.js'));
 
 async function lerCadastro(filePath: string): Promise<CadastroBruto> {
-  const rl = readline.createInterface({ input: fs.createReadStream(filePath), crlfDelay: Infinity });
+  // O laço para no segundo instante: o stream precisa ser fechado à mão, senão o arquivo fica
+  // aberto (no Windows, um arquivo aberto não some da pasta ao ser removido)
+  const entrada = fs.createReadStream(filePath);
+  const rl = readline.createInterface({ input: entrada, crlfDelay: Infinity });
   const pessoas: CadastroBruto['pessoas'] = {};
+  const primeiroCampo = CONFIG.formato.cabecalho.split(';')[0];
   let inicio = '';
   for await (const line of rl) {
     const semBom = line.charCodeAt(0) === 0xfeff ? line.slice(1) : line; // BOM de editores do Windows
-    if (!semBom || semBom.startsWith('idMonitorado')) continue;
-    const c = line.split(';');
+    if (!semBom || semBom.startsWith(primeiroCampo)) continue;
+    const c = semBom.split(';');
     if (c.length < 6 || !Number.isFinite(Number(c[0]))) continue; // linhas inválidas aparecem na aba de qualidade
     const ts = c[2].replace(/"/g, '').trim();
     if (!inicio) inicio = ts;
@@ -50,6 +60,7 @@ async function lerCadastro(filePath: string): Promise<CadastroBruto> {
     pessoas[c[0]] = [c[1].replace(/"/g, '').trim(), c[5].trim().toLowerCase() === 'true', restr];
   }
   rl.close();
+  entrada.destroy();
   return { pessoas, inicio, fim: lerUltimoTimestamp(filePath) };
 }
 
@@ -73,24 +84,28 @@ function lerJson<T>(filePath: string): T | null {
   return fs.existsSync(filePath) ? (JSON.parse(fs.readFileSync(filePath, 'utf8')) as T) : null;
 }
 
-export async function carregarDados(root: string, origem: DadosPainel['origem']): Promise<DadosPainel> {
+export async function carregarDados(origem: DadosPainel['origem'], porta?: number): Promise<DadosPainel> {
   const avisos: string[] = [];
   const datasets: DatasetBruto[] = [];
+  const { lista, comCatalogo } = listarDatasets();
+  if (!comCatalogo) avisos.push(`${rel(PASTAS.metricas)}/datasets.json não existe; os nomes dos arquivos incluídos ficam desconhecidos. Rode "npm start".`);
 
-  for (const n of listarDatasets(root)) {
-    const respPath = path.join(root, 'outputs', `respostas${n}.json`);
+  for (const d of lista) {
+    const respPath = path.join(PASTAS.saidas, `respostas${d.n}.json`);
     const encontros = lerJson<EncontroResposta[]>(respPath);
+    const nome = d.arquivo || `dataset ${d.n}`;
     if (!encontros) {
-      avisos.push(`Inputs/dataset${n}.txt ainda não foi processado; ele fica fora do painel. Rode "npm start -- -d ${n}".`);
+      if (d.existe) avisos.push(`${nome} (dataset ${d.n}) ainda não foi processado; ele fica fora do painel. Rode "npm start -- -d ${d.n}".`);
       continue;
     }
-    const inputPath = path.join(root, 'Inputs', `dataset${n}.txt`);
-    const cadastro = fs.existsSync(inputPath) ? await lerCadastro(inputPath) : null;
-    if (!cadastro) avisos.push(`Inputs/dataset${n}.txt não existe; facções, vítimas e período do dataset ${n} ficam sem cadastro.`);
+    const inputPath = d.arquivo ? path.join(PASTAS.entradas, d.arquivo) : '';
+    const cadastro = inputPath && fs.existsSync(inputPath) ? await lerCadastro(inputPath) : null;
+    if (!cadastro) avisos.push(`${inputPath ? rel(inputPath) : nome} não está na pasta de entradas; facções, vítimas e período do dataset ${d.n} ficam sem cadastro.`);
 
     datasets.push({
-      n,
-      oficial: n <= DATASETS_OFICIAIS,
+      n: d.n,
+      arquivo: d.arquivo,
+      oficial: d.oficial,
       cadastro,
       encontros: encontros.map(e => {
         const [a, b] = e.monitoradosEncontro;
@@ -105,15 +120,17 @@ export async function carregarDados(root: string, origem: DadosPainel['origem'])
   }
 
   if (datasets.length === 0) {
-    throw new Error('Nenhum arquivo em outputs/. Rode "npm start" para gerar os resultados primeiro.');
+    throw new Error(`Nenhum resultado em ${rel(PASTAS.saidas)}/. Rode "npm start" para gerar os resultados primeiro.`);
   }
 
-  const execucao = lerJson<Execucao[]>(path.join(root, 'metricas', 'execucao.json'));
-  if (!execucao) avisos.push('metricas/execucao.json não existe; tempos e qualidade dos dados ficam vazios. Rode "npm start".');
-  const validacao = lerJson<Validacao>(path.join(root, 'metricas', 'validacao.json'));
-  if (!validacao) avisos.push('metricas/validacao.json não existe; score e acurácia ficam vazios. Rode "npm test".');
+  const execPath = path.join(PASTAS.metricas, 'execucao.json');
+  const execucao = lerJson<Execucao[]>(execPath);
+  if (!execucao) avisos.push(`${rel(execPath)} não existe; tempos e qualidade dos dados ficam vazios. Rode "npm start".`);
+  const valPath = path.join(PASTAS.metricas, 'validacao.json');
+  const validacao = lerJson<Validacao>(valPath);
+  if (!validacao) avisos.push(`${rel(valPath)} não existe; score e acurácia ficam vazios. Rode "npm test".`);
 
-  const comBackend = origem === 'servidor' && backendCompilado(root);
+  const comBackend = origem === 'servidor' && backendCompilado();
   if (origem === 'servidor' && !comBackend) {
     avisos.push('O backend não está compilado; as abas Dados brutos e Incluir dados ficam indisponíveis. Rode "npm run build".');
   }
@@ -121,6 +138,7 @@ export async function carregarDados(root: string, origem: DadosPainel['origem'])
     geradoEm: new Date().toISOString(),
     origem,
     capacidades: { brutos: comBackend, incluir: comBackend },
+    parametros: parametrosPainel(porta),
     datasets,
     execucao: execucao ?? [],
     validacao,

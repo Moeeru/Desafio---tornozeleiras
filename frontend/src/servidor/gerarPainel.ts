@@ -40,7 +40,7 @@ export function montarHtmlAutocontido(dados: DadosPainel): string {
 }
 
 async function main(): Promise<void> {
-  const dados = await carregarDados(ROOT, 'arquivo');
+  const dados = await carregarDados('arquivo');
   dados.avisos.forEach(a => console.warn(`[AVISO] ${a}`));
   const outPath = path.join(ROOT, 'frontend', 'dist', 'painel.html');
   fs.mkdirSync(path.dirname(outPath), { recursive: true });

@@ -97,19 +97,22 @@ export function desenharBarras(el: HTMLElement, linhas: LinhaBarra[], destaque: 
 }
 
 /** Faixa de distância por tipo: do menor ao maior valor, metade central destacada, mediana marcada. */
-export function desenharFaixas(el: HTMLElement, E: Enc[]): void {
+export function desenharFaixas(el: HTMLElement, E: Enc[], limite: number): void {
   const W = larguraDe(el);
   if (!W) return;
   const lw = 78, rowH = 52, m = { r: 12, t: 26, b: 26 };
   const iw = W - lw - m.r, H = m.t + TIPOS.length * rowH + m.b;
-  const x = (v: number): number => lw + (v / 20) * iw;
-  let s = svgOpen(W, H, 'Faixa de distância dos encontros por tipo, de 0 a 20 metros');
-  for (let v = 0; v <= 20; v += 5) {
+  // Escala de 0 até a distância limite da configuração, com 4 divisões
+  const lim = limite, passo = lim / 4;
+  const x = (v: number): number => lw + (v / lim) * iw;
+  let s = svgOpen(W, H, `Faixa de distância dos encontros por tipo, de 0 a ${nf1.format(lim)} metros`);
+  for (let i = 0; i <= 4; i++) {
+    const v = passo * i;
     s += `<line class="grid-l" x1="${x(v)}" x2="${x(v)}" y1="${m.t - 6}" y2="${H - m.b}"/>`;
-    s += `<text class="ax" x="${x(v)}" y="${H - 8}" text-anchor="middle">${v} m</text>`;
+    s += `<text class="ax" x="${x(v)}" y="${H - 8}" text-anchor="middle">${nf1.format(v)} m</text>`;
   }
-  s += `<line class="limit-l" x1="${x(20)}" x2="${x(20)}" y1="${m.t - 10}" y2="${H - m.b}"/>`;
-  s += `<text class="lim-lab" x="${x(20)}" y="${m.t - 14}" text-anchor="end">limite</text>`;
+  s += `<line class="limit-l" x1="${x(lim)}" x2="${x(lim)}" y1="${m.t - 10}" y2="${H - m.b}"/>`;
+  s += `<text class="lim-lab" x="${x(lim)}" y="${m.t - 14}" text-anchor="end">limite</text>`;
   const stats: Record<string, { mn: number; mx: number; md: number; q1: number; q3: number; n: number }> = {};
   TIPOS.forEach((t, i) => {
     const cy = m.t + i * rowH + rowH / 2;
@@ -136,7 +139,7 @@ export function desenharFaixas(el: HTMLElement, E: Enc[]): void {
 /** Barra horizontal simples (rankings), com valor à direita. */
 export function barraHtml(rotulo: string, valor: number, max: number, texto: string, cor = 'var(--bar)', attrs = ''): string {
   return `<div class="hbar" ${attrs}>
-    <span class="hbar-r">${rotulo}</span>
+    <span class="hbar-r" title="${esc(rotulo.replace(/<[^>]*>/g, ''))}">${rotulo}</span>
     <span class="hbar-t"><span style="width:${max ? (valor / max) * 100 : 0}%;background:${cor}"></span></span>
     <span class="hbar-v">${texto}</span>
   </div>`;

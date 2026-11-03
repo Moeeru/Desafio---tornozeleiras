@@ -1,14 +1,24 @@
 /** Chamadas ao servidor do BI. No modo arquivo (painel.html) só os dados embutidos existem. */
-import type { DadosPainel, PaginaBrutos, ResultadoInclusao } from '../../../../shared/contrato.js';
+import type { CodigoErro, DadosPainel, PaginaBrutos, ResultadoInclusao, VerificacaoArquivo } from '../../../../shared/contrato.js';
 
 declare global {
   interface Window { __DADOS__?: DadosPainel }
 }
 
+/** Erro devolvido pelo servidor, com o código do backend quando houver (ja_existe, nome_invalido...). */
+export class ErroApi extends Error {
+  constructor(mensagem: string, readonly codigo?: CodigoErro) { super(mensagem); }
+}
+
 async function lerResposta<T>(resp: Response): Promise<T> {
-  const corpo = (await resp.json().catch(() => ({}))) as T & { erro?: string };
-  if (!resp.ok || corpo.erro) throw new Error(corpo.erro || `O servidor respondeu ${resp.status}.`);
+  const corpo = (await resp.json().catch(() => ({}))) as T & { erro?: string; codigo?: CodigoErro };
+  if (!resp.ok || corpo.erro) throw new ErroApi(corpo.erro || `O servidor respondeu ${resp.status}.`, corpo.codigo);
   return corpo;
+}
+
+/** Pergunta ao backend se já existe um arquivo com esse nome, antes de enviar. */
+export async function verificarArquivo(nome: string): Promise<VerificacaoArquivo> {
+  return lerResposta<VerificacaoArquivo>(await fetch(`/api/datasets/verificar?${new URLSearchParams({ nome })}`, { cache: 'no-store' }));
 }
 
 export async function carregarDadosPainel(): Promise<DadosPainel> {
@@ -29,12 +39,14 @@ export function enviarDataset(arquivo: File, progresso: (fracao: number) => void
     xhr.open('POST', '/api/datasets');
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
     xhr.setRequestHeader('X-Radar', '1');
+    // O arquivo é gravado no backend com este nome, sem renomear
+    xhr.setRequestHeader('X-Nome-Arquivo', encodeURIComponent(arquivo.name));
     xhr.upload.onprogress = ev => { if (ev.lengthComputable) progresso(ev.loaded / ev.total); };
     xhr.onerror = () => reject(new Error('A conexão com o servidor caiu durante o envio.'));
     xhr.onload = () => {
-      let corpo: ResultadoInclusao & { erro?: string };
-      try { corpo = JSON.parse(xhr.responseText); } catch { reject(new Error(`O servidor respondeu ${xhr.status}.`)); return; }
-      if (xhr.status >= 400 || corpo.erro) reject(new Error(corpo.erro || `O servidor respondeu ${xhr.status}.`));
+      let corpo: ResultadoInclusao & { erro?: string; codigo?: CodigoErro };
+      try { corpo = JSON.parse(xhr.responseText); } catch { reject(new ErroApi(`O servidor respondeu ${xhr.status}.`)); return; }
+      if (xhr.status >= 400 || corpo.erro) reject(new ErroApi(corpo.erro || `O servidor respondeu ${xhr.status}.`, corpo.codigo));
       else resolve(corpo);
     };
     xhr.send(arquivo);

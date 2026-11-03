@@ -1,7 +1,12 @@
+import { CONFIG } from '../config';
+
 /**
- * Constante oficial do raio da Terra definida pelo desafio: 6.371.000 metros.
+ * Raio da Terra (deteccao.raioTerraMetros em radar.config.json; o desafio define 6.371.000 m).
  */
-export const DEFAULT_EARTH_RADIUS_METERS = 6371000;
+export const DEFAULT_EARTH_RADIUS_METERS = CONFIG.deteccao.raioTerraMetros;
+
+/** Distância limite de um encontro (deteccao.distanciaLimiteMetros; o desafio define 20 m). */
+export const DEFAULT_DISTANCE_THRESHOLD_METERS = CONFIG.deteccao.distanciaLimiteMetros;
 
 /**
  * Conversão de graus para radianos.
@@ -60,15 +65,32 @@ export function haversineDistance(
  */
 export const MAX_DELTA_LAT = 0.00025;
 export const MAX_DELTA_LON = 0.00035;
+/** Distância para a qual MAX_DELTA_LAT/LON foram calibradas. */
+const LIMITE_CALIBRADO_METROS = 20;
+
+export interface MargensPreFiltro { lat: number; lon: number }
+
+/**
+ * Margens do pré-filtro para outra distância limite: as de 20 m escaladas na mesma proporção,
+ * o que mantém a folga (~1,39× na latitude) e a latitude segura (≈ 59°). Para 20 m o fator é
+ * exatamente 1, então os valores são idênticos às constantes.
+ */
+export function margensPreFiltro(limiteMetros = DEFAULT_DISTANCE_THRESHOLD_METERS): MargensPreFiltro {
+  const f = limiteMetros / LIMITE_CALIBRADO_METROS;
+  return { lat: MAX_DELTA_LAT * f, lon: MAX_DELTA_LON * f };
+}
+
+const MARGENS_PADRAO = margensPreFiltro();
 
 export function isWithinBoundingBox(
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
+  margens: MargensPreFiltro = MARGENS_PADRAO
 ): boolean {
-  if (Math.abs(lat1 - lat2) > MAX_DELTA_LAT) return false;
-  if (Math.abs(lon1 - lon2) > MAX_DELTA_LON) return false;
+  if (Math.abs(lat1 - lat2) > margens.lat) return false;
+  if (Math.abs(lon1 - lon2) > margens.lon) return false;
   return true;
 }
 
